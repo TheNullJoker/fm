@@ -4,9 +4,11 @@ import { Card } from '../UI/Card';
 import { Button } from '../UI/Button';
 import { Input } from '../UI/Input';
 import { Sword, Shield, Heart, Zap, Plus, X, Crown, Sparkles, Play, Award, Loader2, Eye } from 'lucide-react';
-import { ItemSlot, SkillSlot } from '../../types/Profile';
+import { ItemSlot, SkillSlot, PetSlot, MountSlot } from '../../types/Profile';
 import { ItemSelectorModal } from '../Profile/ItemSelectorModal';
 import { SkillSelectorModal } from '../Profile/SkillSelectorModal';
+import { PetSelectorModal } from '../Profile/PetSelectorModal';
+import { MountSelectorModal } from '../Profile/MountSelectorModal';
 import { cn, getRarityBgStyle } from '../../lib/utils';
 import { getItemImage } from '../../utils/itemAssets';
 import { AGES } from '../../utils/constants';
@@ -40,6 +42,8 @@ export function EnemyBuilder() {
     const { data: skillLibrary } = useGameData<any>('SkillLibrary.json');
     const { data: weaponLibrary } = useGameData<any>('WeaponLibrary.json');
     const { data: secondaryStatLibrary } = useGameData<any>('SecondaryStatLibrary.json');
+    const { data: pvpBaseConfig } = useGameData<any>('PvpBaseConfig.json');
+    const { data: mountUpgradeLibrary } = useGameData<any>('MountUpgradeLibrary.json');
 
     // ... (other hooks)
 
@@ -59,7 +63,7 @@ export function EnemyBuilder() {
     const { data: petBalancingLibrary } = useGameData<any>('PetBalancingLibrary.json');
     const { data: petLibrary } = useGameData<any>('PetLibrary.json');
     const { data: skillPassiveLibrary } = useGameData<any>('SkillPassiveLibrary.json');
-    const { data: mountUpgradeLibrary } = useGameData<any>('MountUpgradeLibrary.json');
+
     const { data: techTreeLibrary } = useGameData<any>('TechTreeLibrary.json');
     const { data: techTreePositionLibrary } = useGameData<any>('TechTreePositionLibrary.json');
     const { data: itemBalancingLibrary } = useGameData<any>('ItemBalancingLibrary.json');
@@ -83,7 +87,7 @@ export function EnemyBuilder() {
     };
 
     // UI State
-    const [modalOpen, setModalOpen] = useState<'weapon' | 'skill_0' | 'skill_1' | 'skill_2' | null>(null);
+    const [modalOpen, setModalOpen] = useState<'weapon' | 'skill_0' | 'skill_1' | 'skill_2' | 'pet' | 'mount' | null>(null);
     const [visualizerOpen, setVisualizerOpen] = useState(false);
     const [simCount, setSimCount] = useState<number>(1000);
     const [isSimulating, setIsSimulating] = useState(false);
@@ -106,7 +110,9 @@ export function EnemyBuilder() {
             damage: 1000,
         },
         passiveStats: initPassiveStats(),
-        name: "Enemy Player"
+        name: "Enemy Player",
+        pets: [null, null, null],
+        mount: null
     });
 
     // Save/Load Logic
@@ -169,6 +175,30 @@ export function EnemyBuilder() {
 
     const handleWeaponSelect = (item: ItemSlot | null) => {
         setEnemy(prev => ({ ...prev, weapon: item }));
+    };
+
+    const handlePetSelect = (index: number, pet: PetSlot | null) => {
+        setEnemy(prev => {
+            const newPets = [...(prev.pets || [null, null, null])];
+            newPets[index] = pet;
+            return { ...prev, pets: newPets };
+        });
+    };
+
+
+
+    const updatePetHp = (index: number, hp: number) => {
+        setEnemy(prev => {
+            const newPets = [...(prev.pets || [null, null, null])];
+            if (newPets[index]) {
+                newPets[index] = { ...newPets[index]!, hp };
+            }
+            return { ...prev, pets: newPets };
+        });
+    };
+
+    const handleMountSelect = (mount: MountSlot | null) => {
+        setEnemy(prev => ({ ...prev, mount: mount }));
     };
 
     const handleSkillSelect = (slotIdx: number, skill: SkillSlot) => {
@@ -250,7 +280,7 @@ export function EnemyBuilder() {
     };
 
     const runSimulation = async () => {
-        if (!globalStats || !skillLibrary || !weaponLibrary) return;
+        if (!globalStats || !skillLibrary || !weaponLibrary || !pvpBaseConfig || !mountUpgradeLibrary) return;
 
         setIsSimulating(true);
         setSimResults(null);
@@ -266,7 +296,7 @@ export function EnemyBuilder() {
                 );
 
                 // 2. Convert Player 2 (Enemy) Stats
-                const p2Stats = enemyConfigToPvpStats(enemy, weaponLibrary);
+                const p2Stats = enemyConfigToPvpStats(enemy, weaponLibrary, pvpBaseConfig, mountUpgradeLibrary);
 
                 // 3. Run Simulation
                 const results = simulatePvpBattleMulti(p1Stats, p2Stats, simCount);
@@ -293,10 +323,10 @@ export function EnemyBuilder() {
 
     // Helper to get current stats for visualizer
     const getBattleStats = (): { p1: PvpPlayerStats, p2: PvpPlayerStats } | null => {
-        if (!globalStats || !skillLibrary || !weaponLibrary) return null;
+        if (!globalStats || !skillLibrary || !weaponLibrary || !pvpBaseConfig || !mountUpgradeLibrary) return null;
         try {
-            const p1 = aggregatedStatsToPvpStats(globalStats, profile.skills.equipped, skillLibrary);
-            const p2 = enemyConfigToPvpStats(enemy, weaponLibrary);
+            const p1 = aggregatedStatsToPvpStats(globalStats, profile.skills.equipped, skillLibrary, pvpBaseConfig);
+            const p2 = enemyConfigToPvpStats(enemy, weaponLibrary, pvpBaseConfig, mountUpgradeLibrary);
             return { p1, p2 };
         } catch (e) {
             console.error(e);
@@ -636,6 +666,143 @@ export function EnemyBuilder() {
                 </div>
             </div>
 
+            {/* Pet & Mount Stats for PvP */}
+            <div className="space-y-4">
+                <h3 className="text-sm font-bold uppercase text-text-muted flex items-center gap-2 border-t border-border pt-4">
+                    <Heart className="w-4 h-4" /> Pet & Mount (PvP)
+                </h3>
+                <p className="text-xs text-text-muted/70 -mt-2">
+                    Select up to 3 active Pets and a Mount to apply their stats.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Pet Selection (3 Slots) */}
+                    <div className="space-y-2">
+                        <span className="text-xs font-bold uppercase text-text-muted">Active Pets</span>
+                        <div className="grid grid-cols-3 gap-2">
+                            {[0, 1, 2].map(idx => {
+                                const pet = enemy.pets?.[idx];
+                                return (
+                                    <div key={idx} className="space-y-1">
+                                        <button
+                                            onClick={() => setModalOpen(`pet_${idx}` as any)}
+                                            className={cn(
+                                                "w-full aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1 transition-all hover:border-accent-primary/50 group relative overflow-hidden",
+                                                pet ? "border-solid border-border bg-bg-secondary/40" : "border-border/40 hover:bg-white/5"
+                                            )}
+                                        >
+                                            {pet ? (
+                                                <>
+                                                    <div className="absolute inset-0 pointer-events-none" style={{ ...getRarityBgStyle(pet.rarity), opacity: 0.1 }} />
+                                                    <div className="relative z-10 w-10 h-10 flex items-center justify-center">
+                                                        {spriteMapping?.pets ? (
+                                                            <SpriteSheetIcon
+                                                                textureSrc="./icons/game/Pets.png"
+                                                                spriteWidth={spriteMapping.pets.sprite_size.width}
+                                                                spriteHeight={spriteMapping.pets.sprite_size.height}
+                                                                sheetWidth={spriteMapping.pets.texture_size.width}
+                                                                sheetHeight={spriteMapping.pets.texture_size.height}
+                                                                iconIndex={(() => {
+                                                                    const entry = Object.entries(spriteMapping.pets.mapping).find(([_, val]: [string, any]) => val.id === pet.id && val.rarity === pet.rarity);
+                                                                    return entry ? parseInt(entry[0]) : 0;
+                                                                })()}
+                                                                className="w-10 h-10 object-contain"
+                                                            />
+                                                        ) : (
+                                                            <Heart className="w-6 h-6 text-pink-400" />
+                                                        )}
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <Heart className="w-5 h-5 text-text-muted group-hover:text-accent-primary" />
+                                            )}
+                                        </button>
+
+                                        {/* HP Input */}
+                                        {pet && (
+                                            <div className="flex items-center gap-1 relative pt-2">
+                                                <span className="text-[10px] text-text-muted font-bold">HP</span>
+                                                {renderPreview(pet.hp)}
+                                                <Input
+                                                    type="number"
+                                                    value={pet.hp || ''}
+                                                    onChange={(e) => updatePetHp(idx, Math.max(0, parseFloat(e.target.value) || 0))}
+                                                    className="h-6 w-20 bg-transparent border-0 border-b border-border rounded-none px-0 text-center font-mono font-bold focus:ring-0 text-[10px]"
+                                                    placeholder="HP"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Mount Selection */}
+                    <div className="space-y-2">
+                        <span className="text-xs font-bold uppercase text-text-muted">Mount</span>
+                        <div className="flex gap-4">
+                            <button
+                                onClick={() => setModalOpen('mount')}
+                                className={cn(
+                                    "w-32 aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-3 transition-all hover:border-accent-primary/50 group relative overflow-hidden",
+                                    enemy.mount ? "border-solid border-border bg-bg-secondary/40" : "border-border/40 hover:bg-white/5"
+                                )}
+                            >
+                                {enemy.mount ? (
+                                    <>
+                                        <div className="absolute inset-0 pointer-events-none" style={{ ...getRarityBgStyle(enemy.mount.rarity), opacity: 0.1 }} />
+                                        <div className="relative z-10 w-12 h-12 flex items-center justify-center">
+                                            {spriteMapping?.mounts ? (
+                                                <SpriteSheetIcon
+                                                    textureSrc="./icons/game/MountIcons.png"
+                                                    spriteWidth={spriteMapping.mounts.sprite_size.width}
+                                                    spriteHeight={spriteMapping.mounts.sprite_size.height}
+                                                    sheetWidth={spriteMapping.mounts.texture_size.width}
+                                                    sheetHeight={spriteMapping.mounts.texture_size.height}
+                                                    iconIndex={(() => {
+                                                        const entry = Object.entries(spriteMapping.mounts.mapping).find(([_, val]: [string, any]) => val.id === enemy.mount!.id && val.rarity === enemy.mount!.rarity);
+                                                        return entry ? parseInt(entry[0]) : 0;
+                                                    })()}
+                                                    className="w-12 h-12 object-contain"
+                                                />
+                                            ) : (
+                                                <Crown className="w-8 h-8 text-yellow-400" />
+                                            )}
+                                        </div>
+                                        <div className="z-10 text-center">
+                                            <div className={cn("text-[10px] font-bold", `text-rarity-${enemy.mount.rarity.toLowerCase()}`)}>
+                                                {enemy.mount.rarity}
+                                            </div>
+                                            <div className="flex items-center gap-1 justify-center mt-1">
+                                                <span className="text-[10px] text-text-muted font-bold">HP%</span>
+                                                <Input
+                                                    type="number"
+                                                    value={enemy.mount.hp || ''}
+                                                    onChange={(e) => {
+                                                        const val = Math.max(0, parseFloat(e.target.value) || 0);
+                                                        setEnemy(prev => prev.mount ? { ...prev, mount: { ...prev.mount, hp: val } } : prev);
+                                                    }}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="h-5 w-12 bg-transparent border-0 border-b border-border rounded-none px-0 text-center font-mono font-bold focus:ring-0 text-[10px]"
+                                                    placeholder="%"
+                                                />
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="p-2 rounded-full bg-bg-input group-hover:bg-accent-primary/10 transition-colors">
+                                            <Crown className="w-5 h-5 text-text-muted group-hover:text-accent-primary" />
+                                        </div>
+                                        <span className="text-xs font-bold text-text-muted group-hover:text-text-primary">Select Mount</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {/* Passive Stats - Toggleable */}
             <div className="space-y-4">
                 <h3 className="text-sm font-bold uppercase text-text-muted flex items-center gap-2 border-t border-border pt-4">
@@ -797,6 +964,41 @@ export function EnemyBuilder() {
                     if (modalOpen?.startsWith('skill_')) {
                         handleSkillSelect(parseInt(modalOpen.split('_')[1]), skill);
                     }
+                    setModalOpen(null);
+                }}
+            />
+
+            <PetSelectorModal
+                isOpen={modalOpen?.startsWith('pet_') ?? false}
+                onClose={() => setModalOpen(null)}
+                currentPet={(() => {
+                    const idx = modalOpen?.startsWith('pet_') ? parseInt(modalOpen.split('_')[1]) : 0;
+                    return enemy.pets?.[idx] || undefined;
+                })()}
+                context="pvp"
+                onSelect={(pet) => {
+                    if (modalOpen?.startsWith('pet_')) {
+                        handlePetSelect(parseInt(modalOpen.split('_')[1]), pet);
+                    }
+                    setModalOpen(null);
+                }}
+            />
+
+            <MountSelectorModal
+                isOpen={modalOpen === 'mount'}
+                onClose={() => setModalOpen(null)}
+                currentMount={enemy.mount || undefined}
+                context="pvp"
+                onSelect={(rarity, id, level, secondaryStats) => {
+                    handleMountSelect({
+                        rarity,
+                        id,
+                        level,
+                        secondaryStats,
+                        evolution: 0,
+                        skills: [],
+                        hp: 0
+                    });
                     setModalOpen(null);
                 }}
             />

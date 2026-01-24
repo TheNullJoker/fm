@@ -19,6 +19,7 @@ export interface PetSlot {
         value: number;
     }[];
     customName?: string;
+    hp?: number;
 }
 
 export interface MountSlot {
@@ -32,6 +33,7 @@ export interface MountSlot {
         value: number;
     }[];
     customName?: string;
+    hp?: number;
 }
 
 export interface SkillSlot {

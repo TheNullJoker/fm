@@ -24,10 +24,11 @@ interface MountSelectorModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSelect: (rarity: string, id: number, level: number, secondaryStats: { statId: string; value: number }[]) => void;
+    context?: 'profile' | 'pvp';
     currentMount?: MountSlot | null;
 }
 
-export function MountSelectorModal({ isOpen, onClose, onSelect, currentMount }: MountSelectorModalProps) {
+export function MountSelectorModal({ isOpen, onClose, onSelect, currentMount, context = 'profile' }: MountSelectorModalProps) {
     const { data: spriteMapping } = useGameData<any>('ManualSpriteMapping.json');
     const { data: mountUpgradeLib } = useGameData<any>('MountUpgradeLibrary.json');
     const { data: secondaryStatLibrary } = useGameData<any>('SecondaryStatLibrary.json');
@@ -60,12 +61,15 @@ export function MountSelectorModal({ isOpen, onClose, onSelect, currentMount }: 
                 setMountLevel(1);
                 setManualStats([]);
             }
+
+            // Default to library tab unless editing
+            if (!currentMount) setActiveTab('library');
+            if (context === 'pvp') setActiveTab('library');
+
+            setMobileTab('rarity');
         }
-        // Default to library tab unless editing
-        if (!currentMount) setActiveTab('library');
-        setMobileTab('rarity');
     }
-        , [isOpen, currentMount]);
+        , [isOpen, currentMount, context]);
 
     // Calculate max slots based on rarity (using Pet logic as requested)
     const maxSlots = useMemo(() => {
@@ -210,15 +214,17 @@ export function MountSelectorModal({ isOpen, onClose, onSelect, currentMount }: 
                     >
                         Mount Library
                     </button>
-                    <button
-                        onClick={() => setActiveTab('saved')}
-                        className={cn(
-                            "flex-1 py-3 text-sm font-bold border-b-2 transition-colors",
-                            activeTab === 'saved' ? "border-accent-primary text-accent-primary bg-accent-primary/5" : "border-transparent text-text-muted hover:text-text-primary"
-                        )}
-                    >
-                        Saved Builds ({profile.mount.savedBuilds?.length || 0})
-                    </button>
+                    {context !== 'pvp' && (
+                        <button
+                            onClick={() => setActiveTab('saved')}
+                            className={cn(
+                                "flex-1 py-3 text-sm font-bold border-b-2 transition-colors",
+                                activeTab === 'saved' ? "border-accent-primary text-accent-primary bg-accent-primary/5" : "border-transparent text-text-muted hover:text-text-primary"
+                            )}
+                        >
+                            Saved Builds ({profile.mount.savedBuilds?.length || 0})
+                        </button>
+                    )}
                 </div>
 
                 {/* Mobile Tab Navigation */}
@@ -360,58 +366,62 @@ export function MountSelectorModal({ isOpen, onClose, onSelect, currentMount }: 
                                         <h2 className="text-lg font-bold">{filteredMounts.find((m: any) => m.id === selectedMountId)?.name || `Mount #${selectedMountId}`}</h2>
                                         <p className={cn("text-xs font-bold uppercase", `text-rarity-${selectedRarity.toLowerCase()}`)}>{selectedRarity}</p>
                                     </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold uppercase text-text-muted">Level</label>
-                                        <div className="flex items-center gap-2">
-                                            <Button variant="ghost" size="sm" onClick={() => setMountLevel(Math.max(1, mountLevel - 1))}><Minus className="w-4 h-4" /></Button>
-                                            <Input type="number" value={mountLevel} onChange={(e) => setMountLevel(Math.max(1, parseInt(e.target.value) || 1))} className="text-center font-mono font-bold" />
-                                            <Button variant="ghost" size="sm" onClick={() => setMountLevel(mountLevel + 1)}><Plus className="w-4 h-4" /></Button>
+                                    {context !== 'pvp' && (
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold uppercase text-text-muted">Level</label>
+                                            <div className="flex items-center gap-2">
+                                                <Button variant="ghost" size="sm" onClick={() => setMountLevel(Math.max(1, mountLevel - 1))}><Minus className="w-4 h-4" /></Button>
+                                                <Input type="number" value={mountLevel} onChange={(e) => setMountLevel(Math.max(1, parseInt(e.target.value) || 1))} className="text-center font-mono font-bold" />
+                                                <Button variant="ghost" size="sm" onClick={() => setMountLevel(mountLevel + 1)}><Plus className="w-4 h-4" /></Button>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <label className="text-xs font-bold uppercase text-text-muted">Passive Stats ({manualStats.length}/{maxSlots})</label>
-                                            <Button variant="ghost" size="sm" onClick={addStat} disabled={manualStats.length >= maxSlots}><Plus className="w-3 h-3 mr-1" />Add</Button>
-                                        </div>
-                                        {manualStats.map((stat, i) => {
-                                            const range = getStatRange(stat.statId);
-                                            return (
-                                                <div key={i} className="flex flex-col gap-1">
-                                                    <div className="flex gap-2 items-center">
-                                                        <select
-                                                            value={stat.statId}
-                                                            onChange={(e) => updateStat(i, 'statId', e.target.value)}
-                                                            className="flex-1 bg-bg-input border border-border rounded px-2 py-1 text-xs"
-                                                        >
-                                                            {STAT_TYPES.filter(t =>
-                                                                t === stat.statId || !manualStats.some(s => s.statId === t)
-                                                            ).map(t => (
-                                                                <option key={t} value={t}>{getStatName(t)}</option>
-                                                            ))}
-                                                        </select>
-                                                        <input
-                                                            type="number"
-                                                            step="0.01"
-                                                            min={(range?.min || 0) * 100}
-                                                            max={(range?.max || 1) * 100}
-                                                            value={stat.value}
-                                                            onChange={(e) => updateStat(i, 'value', parseFloat(e.target.value) || 0)}
-                                                            className="w-16 bg-bg-input border border-border rounded px-2 py-1 text-xs font-mono"
-                                                            onFocus={(e) => e.target.select()}
-                                                        />
-                                                        <button onClick={() => removeStat(i)} className="text-red-400 hover:text-red-300">
-                                                            <Trash2 className="w-3 h-3" />
-                                                        </button>
-                                                    </div>
-                                                    {range && (
-                                                        <div className="text-[10px] text-text-muted px-1">
-                                                            Range: {(range.min * 100).toFixed(1)}% - {(range.max * 100).toFixed(1)}%
+                                    )}
+                                    {context !== 'pvp' && (
+                                        <div className="space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <label className="text-xs font-bold uppercase text-text-muted">Passive Stats ({manualStats.length}/{maxSlots})</label>
+                                                <Button variant="ghost" size="sm" onClick={addStat} disabled={manualStats.length >= maxSlots}><Plus className="w-3 h-3 mr-1" />Add</Button>
+                                            </div>
+                                            {manualStats.map((stat, i) => {
+                                                const range = getStatRange(stat.statId);
+                                                return (
+                                                    <div key={i} className="flex flex-col gap-1">
+                                                        <div className="flex gap-2 items-center">
+                                                            <select
+                                                                value={stat.statId}
+                                                                onChange={(e) => updateStat(i, 'statId', e.target.value)}
+                                                                className="flex-1 bg-bg-input border border-border rounded px-2 py-1 text-xs"
+                                                            >
+                                                                {STAT_TYPES.filter(t =>
+                                                                    t === stat.statId || !manualStats.some(s => s.statId === t)
+                                                                ).map(t => (
+                                                                    <option key={t} value={t}>{getStatName(t)}</option>
+                                                                ))}
+                                                            </select>
+                                                            <input
+                                                                type="number"
+                                                                step="0.01"
+                                                                min={(range?.min || 0) * 100}
+                                                                max={(range?.max || 1) * 100}
+                                                                value={stat.value}
+                                                                onChange={(e) => updateStat(i, 'value', parseFloat(e.target.value) || 0)}
+                                                                className="w-16 bg-bg-input border border-border rounded px-2 py-1 text-xs font-mono"
+                                                                onFocus={(e) => e.target.select()}
+                                                            />
+                                                            <button onClick={() => removeStat(i)} className="text-red-400 hover:text-red-300">
+                                                                <Trash2 className="w-3 h-3" />
+                                                            </button>
                                                         </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
+                                                        {range && (
+                                                            <div className="text-[10px] text-text-muted px-1">
+                                                                Range: {(range.min * 100).toFixed(1)}% - {(range.max * 100).toFixed(1)}%
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                     <Button variant="primary" className="w-full gap-2" onClick={handleSave}><Save className="w-4 h-4" />Confirm</Button>
                                 </>
                             ) : (
@@ -631,85 +641,87 @@ export function MountSelectorModal({ isOpen, onClose, onSelect, currentMount }: 
                                     )}
                                 </div>
 
-                                {/* Level Input */}
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold uppercase text-text-muted flex items-center gap-2">
-                                        Level
-                                    </label>
-                                    <div className="flex items-center gap-2">
-                                        <Button variant="ghost" size="sm" onClick={() => setMountLevel(Math.max(1, mountLevel - 1))}>
-                                            <Minus className="w-4 h-4" />
-                                        </Button>
-                                        <Input
-                                            type="number"
-                                            value={mountLevel}
-                                            onChange={(e) => setMountLevel(Math.max(1, parseInt(e.target.value) || 1))}
-                                            className="text-center font-mono font-bold"
-                                        />
-                                        <Button variant="ghost" size="sm" onClick={() => setMountLevel(mountLevel + 1)}>
-                                            <Plus className="w-4 h-4" />
-                                        </Button>
-                                    </div>
-                                </div>
-
-                                {/* Manual Passives */}
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <label className="text-xs font-bold uppercase text-text-muted">
-                                            Passive Stats ({manualStats.length}/{maxSlots})
+                                {context !== 'pvp' && (
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold uppercase text-text-muted flex items-center gap-2">
+                                            Level
                                         </label>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={addStat}
-                                            disabled={manualStats.length >= maxSlots}
-                                            className={manualStats.length >= maxSlots ? "opacity-50 cursor-not-allowed" : ""}
-                                        >
-                                            <Plus className="w-3 h-3 mr-1" /> Add
-                                        </Button>
+                                        <div className="flex items-center gap-2">
+                                            <Button variant="ghost" size="sm" onClick={() => setMountLevel(Math.max(1, mountLevel - 1))}>
+                                                <Minus className="w-4 h-4" />
+                                            </Button>
+                                            <Input
+                                                type="number"
+                                                value={mountLevel}
+                                                onChange={(e) => setMountLevel(Math.max(1, parseInt(e.target.value) || 1))}
+                                                className="text-center font-mono font-bold"
+                                            />
+                                            <Button variant="ghost" size="sm" onClick={() => setMountLevel(mountLevel + 1)}>
+                                                <Plus className="w-4 h-4" />
+                                            </Button>
+                                        </div>
                                     </div>
+                                )}
 
-                                    <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar p-1">
-                                        {manualStats.map((stat, i) => {
-                                            const range = getStatRange(stat.statId);
-                                            return (
-                                                <div key={i} className="flex flex-col gap-1">
-                                                    <div className="flex gap-2 items-center">
-                                                        <select
-                                                            value={stat.statId}
-                                                            onChange={(e) => updateStat(i, 'statId', e.target.value)}
-                                                            className="flex-1 bg-bg-input border border-border rounded px-2 py-1 text-xs"
-                                                        >
-                                                            {STAT_TYPES.filter(t =>
-                                                                t === stat.statId || !manualStats.some(s => s.statId === t)
-                                                            ).map(t => (
-                                                                <option key={t} value={t}>{getStatName(t)}</option>
-                                                            ))}
-                                                        </select>
-                                                        <input
-                                                            type="number"
-                                                            step="0.01"
-                                                            min={(range?.min || 0) * 100}
-                                                            max={(range?.max || 1) * 100}
-                                                            value={stat.value}
-                                                            onChange={(e) => updateStat(i, 'value', parseFloat(e.target.value) || 0)}
-                                                            className="w-16 bg-bg-input border border-border rounded px-2 py-1 text-xs font-mono"
-                                                            onFocus={(e) => e.target.select()}
-                                                        />
-                                                        <button onClick={() => removeStat(i)} className="text-red-400 hover:text-red-300">
-                                                            <Trash2 className="w-3 h-3" />
-                                                        </button>
-                                                    </div>
-                                                    {range && (
-                                                        <div className="text-[10px] text-text-muted px-1">
-                                                            Range: {(range.min * 100).toFixed(1)}% - {(range.max * 100).toFixed(1)}%
+                                {context !== 'pvp' && (
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-xs font-bold uppercase text-text-muted">
+                                                Passive Stats ({manualStats.length}/{maxSlots})
+                                            </label>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={addStat}
+                                                disabled={manualStats.length >= maxSlots}
+                                                className={manualStats.length >= maxSlots ? "opacity-50 cursor-not-allowed" : ""}
+                                            >
+                                                <Plus className="w-3 h-3 mr-1" /> Add
+                                            </Button>
+                                        </div>
+
+                                        <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar p-1">
+                                            {manualStats.map((stat, i) => {
+                                                const range = getStatRange(stat.statId);
+                                                return (
+                                                    <div key={i} className="flex flex-col gap-1">
+                                                        <div className="flex gap-2 items-center">
+                                                            <select
+                                                                value={stat.statId}
+                                                                onChange={(e) => updateStat(i, 'statId', e.target.value)}
+                                                                className="flex-1 bg-bg-input border border-border rounded px-2 py-1 text-xs"
+                                                            >
+                                                                {STAT_TYPES.filter(t =>
+                                                                    t === stat.statId || !manualStats.some(s => s.statId === t)
+                                                                ).map(t => (
+                                                                    <option key={t} value={t}>{getStatName(t)}</option>
+                                                                ))}
+                                                            </select>
+                                                            <input
+                                                                type="number"
+                                                                step="0.01"
+                                                                min={(range?.min || 0) * 100}
+                                                                max={(range?.max || 1) * 100}
+                                                                value={stat.value}
+                                                                onChange={(e) => updateStat(i, 'value', parseFloat(e.target.value) || 0)}
+                                                                className="w-16 bg-bg-input border border-border rounded px-2 py-1 text-xs font-mono"
+                                                                onFocus={(e) => e.target.select()}
+                                                            />
+                                                            <button onClick={() => removeStat(i)} className="text-red-400 hover:text-red-300">
+                                                                <Trash2 className="w-3 h-3" />
+                                                            </button>
                                                         </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
+                                                        {range && (
+                                                            <div className="text-[10px] text-text-muted px-1">
+                                                                Range: {(range.min * 100).toFixed(1)}% - {(range.max * 100).toFixed(1)}%
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
 
                                 <div className="pt-4 mt-auto">
                                     <Button variant="primary" className="w-full gap-2" onClick={handleSave}>

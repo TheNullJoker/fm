@@ -18,6 +18,7 @@ interface PetSelectorModalProps {
     onClose: () => void;
     onSelect: (pet: PetSlot) => void;
     currentPet?: PetSlot; // Optional: for editing existing pet
+    context?: 'profile' | 'pvp';
 }
 
 const STAT_TYPES = [
@@ -36,7 +37,7 @@ const STAT_TYPES = [
     "HealthMulti"
 ];
 
-export function PetSelectorModal({ isOpen, onClose, onSelect, currentPet }: PetSelectorModalProps) {
+export function PetSelectorModal({ isOpen, onClose, onSelect, currentPet, context = 'profile' }: PetSelectorModalProps) {
     const { data: petLibrary } = useGameData<any>('PetLibrary.json');
     const { data: petBalancing } = useGameData<any>('PetBalancingLibrary.json');
     const { data: secondaryUnlockLib } = useGameData<any>('SecondaryStatPetUnlockLibrary.json');
@@ -70,8 +71,9 @@ export function PetSelectorModal({ isOpen, onClose, onSelect, currentPet }: PetS
             setMobileTab('rarity');
             // Default to library tab unless editing
             if (!currentPet) setActiveTab('library');
+            if (context === 'pvp') setActiveTab('library');
         }
-    }, [isOpen, currentPet]);
+    }, [isOpen, currentPet, context]);
 
     const petsConfig = spriteMapping?.pets;
 
@@ -215,26 +217,28 @@ export function PetSelectorModal({ isOpen, onClose, onSelect, currentPet }: PetS
                 </div>
 
                 {/* Tabs */}
-                <div className="flex border-b border-border">
-                    <button
-                        onClick={() => setActiveTab('library')}
-                        className={cn(
-                            "flex-1 py-3 text-sm font-bold border-b-2 transition-colors",
-                            activeTab === 'library' ? "border-accent-primary text-accent-primary bg-accent-primary/5" : "border-transparent text-text-muted hover:text-text-primary"
-                        )}
-                    >
-                        Pet Library
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('saved')}
-                        className={cn(
-                            "flex-1 py-3 text-sm font-bold border-b-2 transition-colors",
-                            activeTab === 'saved' ? "border-accent-primary text-accent-primary bg-accent-primary/5" : "border-transparent text-text-muted hover:text-text-primary"
-                        )}
-                    >
-                        Saved Builds ({profile.pets.savedBuilds?.length || 0})
-                    </button>
-                </div>
+                {context === 'profile' && (
+                    <div className="flex border-b border-border">
+                        <button
+                            onClick={() => setActiveTab('library')}
+                            className={cn(
+                                "flex-1 py-3 text-sm font-bold border-b-2 transition-colors",
+                                activeTab === 'library' ? "border-accent-primary text-accent-primary bg-accent-primary/5" : "border-transparent text-text-muted hover:text-text-primary"
+                            )}
+                        >
+                            Pet Library
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('saved')}
+                            className={cn(
+                                "flex-1 py-3 text-sm font-bold border-b-2 transition-colors",
+                                activeTab === 'saved' ? "border-accent-primary text-accent-primary bg-accent-primary/5" : "border-transparent text-text-muted hover:text-text-primary"
+                            )}
+                        >
+                            Saved Builds ({profile.pets.savedBuilds?.length || 0})
+                        </button>
+                    </div>
+                )}
 
                 {/* Mobile Tab Navigation */}
                 <div className="flex md:hidden border-b border-border bg-bg-secondary/10">
@@ -692,97 +696,99 @@ export function PetSelectorModal({ isOpen, onClose, onSelect, currentPet }: PetS
                                     )}
                                 </div>
 
-                                {/* Level Input */}
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold uppercase text-text-muted flex items-center gap-2">
-                                        Level
-                                    </label>
-                                    <div className="flex items-center gap-2">
-                                        <Button variant="ghost" size="sm" onClick={() => setPetLevel(Math.max(1, petLevel - 1))}>
-                                            <Minus className="w-4 h-4" />
-                                        </Button>
-                                        <Input
-                                            type="number"
-                                            value={petLevel}
-                                            onChange={(e) => setPetLevel(Math.max(1, parseInt(e.target.value) || 1))}
-                                            className="text-center font-mono font-bold"
-                                        />
-                                        <Button variant="ghost" size="sm" onClick={() => setPetLevel(petLevel + 1)}>
-                                            <Plus className="w-4 h-4" />
-                                        </Button>
-                                    </div>
-                                </div>
-
-                                {/* Passive Stats */}
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <label className="text-xs font-bold uppercase text-text-muted flex items-center gap-2">
-                                            Passive Stats
-                                            <span className="bg-bg-input px-1.5 rounded text-[10px] border border-white/10">
-                                                {manualStats.length}/{maxSecondaryStats}
-                                            </span>
-                                        </label>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-6 px-2 text-[10px]"
-                                            onClick={handleAddStat}
-                                            disabled={manualStats.length >= maxSecondaryStats}
-                                        >
-                                            <Plus className="w-3 h-3 mr-1" /> Add
-                                        </Button>
-                                    </div>
-
-                                    {manualStats.length === 0 && (
-                                        <div className="text-xs text-text-muted italic text-center py-4 border border-dashed border-border rounded-lg bg-white/5">
-                                            No passive stats configured
-                                        </div>
-                                    )}
-
+                                {context !== 'pvp' && (
                                     <div className="space-y-2">
-                                        {manualStats.map((stat, idx) => {
-                                            const range = getStatRange(stat.statId);
-                                            return (
-                                                <div key={idx} className="flex flex-col gap-1">
-                                                    <div className="flex gap-2 items-center">
-                                                        <select
-                                                            className="flex-1 bg-bg-input border border-border rounded px-2 py-1 text-xs"
-                                                            value={stat.statId}
-                                                            onChange={(e) => handleUpdateStat(idx, 'statId', e.target.value)}
-                                                        >
-                                                            {STAT_TYPES.filter(t =>
-                                                                t === stat.statId || !manualStats.some(s => s.statId === t)
-                                                            ).map(t => (
-                                                                <option key={t} value={t}>{getStatName(t)}</option>
-                                                            ))}
-                                                        </select>
-                                                        <input
-                                                            type="number"
-                                                            step="0.01"
-                                                            min={(range?.min || 0) * 100}
-                                                            max={(range?.max || 1) * 100}
-                                                            value={stat.value}
-                                                            onChange={(e) => handleUpdateStat(idx, 'value', parseFloat(e.target.value) || 0)}
-                                                            className="w-16 bg-bg-input border border-border rounded px-2 py-1 text-xs font-mono"
-                                                            onFocus={(e) => e.target.select()}
-                                                        />
-                                                        <button
-                                                            onClick={() => handleRemoveStat(idx)}
-                                                            className="text-red-400 hover:text-red-300 transition-colors"
-                                                        >
-                                                            <Trash2 className="w-3 h-3" />
-                                                        </button>
-                                                    </div>
-                                                    {range && (
-                                                        <div className="text-[10px] text-text-muted px-1">
-                                                            Range: {(range.min * 100).toFixed(1)}% - {(range.max * 100).toFixed(1)}%
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
+                                        <label className="text-xs font-bold uppercase text-text-muted flex items-center gap-2">
+                                            Level
+                                        </label>
+                                        <div className="flex items-center gap-2">
+                                            <Button variant="ghost" size="sm" onClick={() => setPetLevel(Math.max(1, petLevel - 1))}>
+                                                <Minus className="w-4 h-4" />
+                                            </Button>
+                                            <Input
+                                                type="number"
+                                                value={petLevel}
+                                                onChange={(e) => setPetLevel(Math.max(1, parseInt(e.target.value) || 1))}
+                                                className="text-center font-mono font-bold"
+                                            />
+                                            <Button variant="ghost" size="sm" onClick={() => setPetLevel(petLevel + 1)}>
+                                                <Plus className="w-4 h-4" />
+                                            </Button>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
+
+                                {context !== 'pvp' && (
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-xs font-bold uppercase text-text-muted flex items-center gap-2">
+                                                Passive Stats
+                                                <span className="bg-bg-input px-1.5 rounded text-[10px] border border-white/10">
+                                                    {manualStats.length}/{maxSecondaryStats}
+                                                </span>
+                                            </label>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-6 px-2 text-[10px]"
+                                                onClick={handleAddStat}
+                                                disabled={manualStats.length >= maxSecondaryStats}
+                                            >
+                                                <Plus className="w-3 h-3 mr-1" /> Add
+                                            </Button>
+                                        </div>
+
+                                        {manualStats.length === 0 && (
+                                            <div className="text-xs text-text-muted italic text-center py-4 border border-dashed border-border rounded-lg bg-white/5">
+                                                No passive stats configured
+                                            </div>
+                                        )}
+
+                                        <div className="space-y-2">
+                                            {manualStats.map((stat, idx) => {
+                                                const range = getStatRange(stat.statId);
+                                                return (
+                                                    <div key={idx} className="flex flex-col gap-1">
+                                                        <div className="flex gap-2 items-center">
+                                                            <select
+                                                                className="flex-1 bg-bg-input border border-border rounded px-2 py-1 text-xs"
+                                                                value={stat.statId}
+                                                                onChange={(e) => handleUpdateStat(idx, 'statId', e.target.value)}
+                                                            >
+                                                                {STAT_TYPES.filter(t =>
+                                                                    t === stat.statId || !manualStats.some(s => s.statId === t)
+                                                                ).map(t => (
+                                                                    <option key={t} value={t}>{getStatName(t)}</option>
+                                                                ))}
+                                                            </select>
+                                                            <input
+                                                                type="number"
+                                                                step="0.01"
+                                                                min={(range?.min || 0) * 100}
+                                                                max={(range?.max || 1) * 100}
+                                                                value={stat.value}
+                                                                onChange={(e) => handleUpdateStat(idx, 'value', parseFloat(e.target.value) || 0)}
+                                                                className="w-16 bg-bg-input border border-border rounded px-2 py-1 text-xs font-mono"
+                                                                onFocus={(e) => e.target.select()}
+                                                            />
+                                                            <button
+                                                                onClick={() => handleRemoveStat(idx)}
+                                                                className="text-red-400 hover:text-red-300 transition-colors"
+                                                            >
+                                                                <Trash2 className="w-3 h-3" />
+                                                            </button>
+                                                        </div>
+                                                        {range && (
+                                                            <div className="text-[10px] text-text-muted px-1">
+                                                                Range: {(range.min * 100).toFixed(1)}% - {(range.max * 100).toFixed(1)}%
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="pt-4 mt-auto">
                                     <Button variant="primary" className="w-full gap-2" onClick={handleSave}>

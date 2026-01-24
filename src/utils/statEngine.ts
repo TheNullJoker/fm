@@ -58,6 +58,7 @@ export interface AggregatedStats {
     secondaryDamageMulti: number;   // DamageMulti secondary stat
     secondaryHealthMulti: number;   // HealthMulti secondary stat
     mountDamageMulti: number;       // Mount Damage Multiplier
+    mountHealthMulti: number;       // Mount Health Multiplier
     meleeDamageMultiplier: number;  // MeleeDamageMulti secondary stat
     rangedDamageMultiplier: number; // RangedDamageMulti secondary stat
     attackSpeedMultiplier: number;
@@ -122,6 +123,7 @@ export const DEFAULT_STATS: AggregatedStats = {
     secondaryDamageMulti: 0,
     secondaryHealthMulti: 0,
     mountDamageMulti: 0,
+    mountHealthMulti: 0,
     meleeDamageMultiplier: 0,
     rangedDamageMultiplier: 0,
     attackSpeedMultiplier: 1,
@@ -271,6 +273,10 @@ export class StatEngine {
         this.finalizeCalculation();
 
         return this.stats;
+    }
+
+    public getTechModifiers(): Record<string, number> {
+        return this.techModifiers;
     }
 
     /**
@@ -991,6 +997,7 @@ export class StatEngine {
         this.stats.secondaryDamageMulti = this.secondaryStats.damageMulti;
         this.stats.secondaryHealthMulti = this.secondaryStats.healthMulti;
         this.stats.mountDamageMulti = this.mountDamageMulti;
+        this.stats.mountHealthMulti = this.mountHealthMulti;
         this.stats.meleeDamageMultiplier = this.secondaryStats.meleeDamageMulti;
         this.stats.rangedDamageMultiplier = this.secondaryStats.rangedDamageMulti;
 
