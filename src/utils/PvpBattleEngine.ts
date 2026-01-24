@@ -1115,8 +1115,7 @@ export function aggregatedStatsToPvpStats(
     stats: any,
     equippedSkills: any[],
     skillLibrary: any,
-    pvpBaseConfig?: any,
-    config?: any
+    pvpBaseConfig?: any
 ): PvpPlayerStats {
     const skills: PvpSkillConfig[] = equippedSkills.map(skill => {
         const skillData = skillLibrary?.[skill.id];
