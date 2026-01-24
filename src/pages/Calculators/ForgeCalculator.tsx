@@ -946,7 +946,12 @@ export default function ForgeCalculator() {
                                                 <span className="font-bold text-lg text-white">{age.name}</span>
                                                 {age.isMax && <span className="text-[10px] bg-accent-primary text-black px-1.5 py-0.5 rounded font-bold uppercase">Max Unlocked</span>}
                                             </div>
-                                            <div className="text-xs text-text-muted">Chance: {(age.chance * 100).toFixed(2)}%</div>
+                                            <div className="text-xs text-text-muted">
+                                                {age.chance > 100
+                                                    ? `Yield: x${(age.chance / 100).toFixed(2)}`
+                                                    : `Chance: ${age.chance.toFixed(2)}%`
+                                                }
+                                            </div>
                                         </div>
                                     </div>
 
