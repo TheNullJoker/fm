@@ -39,3 +39,11 @@ export function CardTitle({ className, children, ...props }: React.HTMLAttribute
         </h3>
     );
 }
+
+export function CardContent({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+    return (
+        <div className={cn("", className)} {...props}>
+            {children}
+        </div>
+    );
+}

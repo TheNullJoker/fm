@@ -102,6 +102,7 @@ export interface UserProfile {
             hammers: string;
             targetGold: string;
             mode: 'hammers' | 'gold';
+            usePlayerItems?: boolean;
         };
     };
 }
