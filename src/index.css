@@ -1,0 +1,206 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        /* Colors */
+        --bg-primary: 15 15 20;
+        --bg-secondary: 25 25 35;
+        --bg-card: 30 30 40;
+        --bg-input: 10 10 15;
+
+        --text-primary: 255 255 255;
+        --text-secondary: 180 180 200;
+        --text-muted: 100 100 120;
+
+        --accent-primary: 236 72 153;
+        --accent-secondary: 168 85 247;
+        --accent-tertiary: 59 130 246;
+
+        --border: 50 50 70;
+
+        /* Rarity Colors (First 6 Age Colors) */
+        --rarity-common: 241 241 241;
+        /* #F1F1F1 */
+        --rarity-rare: 93 216 255;
+        /* #5DD8FF */
+        --rarity-epic: 92 254 137;
+        /* #5CFE89 */
+        --rarity-legendary: 253 255 93;
+        /* #FDFF5D */
+        --rarity-ultimate: 255 93 93;
+        /* #FF5D5D */
+        --rarity-mythic: 213 93 255;
+        /* #D55DFF */
+
+        /* Age Colors (Age 1-10) */
+        --age-primitive: 241 241 241;
+        /* Age 1 */
+        --age-medieval: 93 216 255;
+        /* Age 2 */
+        --age-earlymodern: 92 254 137;
+        /* Age 3 */
+        --age-modern: 253 255 93;
+        /* Age 4 */
+        --age-space: 255 93 93;
+        /* Age 5 */
+        --age-interstellar: 213 93 255;
+        /* Age 6 */
+        --age-multiverse: 117 255 238;
+        /* Age 7 */
+        --age-quantum: 136 109 255;
+        /* Age 8 */
+        --age-underworld: 167 115 115;
+        /* Age 9 */
+        --age-divine: 255 158 13;
+        /* Age 10 */
+    }
+}
+
+@layer components {
+
+    /* Rarity Text Utilities */
+    .text-rarity-common {
+        color: rgb(var(--rarity-common));
+    }
+
+    .text-rarity-rare {
+        color: rgb(var(--rarity-rare));
+    }
+
+    .text-rarity-epic {
+        color: rgb(var(--rarity-epic));
+    }
+
+    .text-rarity-legendary {
+        color: rgb(var(--rarity-legendary));
+    }
+
+    .text-rarity-ultimate {
+        color: rgb(var(--rarity-ultimate));
+    }
+
+    .text-rarity-mythic {
+        color: rgb(var(--rarity-mythic));
+    }
+
+    /* Rarity Background Gradients */
+    .bg-rarity-common {
+        background: linear-gradient(135deg, rgba(var(--rarity-common), 0.2) 0%, rgba(var(--rarity-common), 0.05) 100%);
+    }
+
+    .bg-rarity-rare {
+        background: linear-gradient(135deg, rgba(var(--rarity-rare), 0.25) 0%, rgba(var(--rarity-rare), 0.08) 100%);
+    }
+
+    .bg-rarity-epic {
+        background: linear-gradient(135deg, rgba(var(--rarity-epic), 0.25) 0%, rgba(var(--rarity-epic), 0.08) 100%);
+    }
+
+    .bg-rarity-legendary {
+        background: linear-gradient(135deg, rgba(var(--rarity-legendary), 0.25) 0%, rgba(var(--rarity-legendary), 0.08) 100%);
+    }
+
+    .bg-rarity-ultimate {
+        background: linear-gradient(135deg, rgba(var(--rarity-ultimate), 0.25) 0%, rgba(var(--rarity-ultimate), 0.08) 100%);
+    }
+
+    .bg-rarity-mythic {
+        background: linear-gradient(135deg, rgba(var(--rarity-mythic), 0.3) 0%, rgba(var(--rarity-mythic), 0.1) 100%);
+    }
+
+    /* Rarity Border Colors */
+    .border-rarity-common {
+        border-color: rgb(var(--rarity-common));
+    }
+
+    .border-rarity-rare {
+        border-color: rgb(var(--rarity-rare));
+    }
+
+    .border-rarity-epic {
+        border-color: rgb(var(--rarity-epic));
+    }
+
+    .border-rarity-legendary {
+        border-color: rgb(var(--rarity-legendary));
+    }
+
+    .border-rarity-ultimate {
+        border-color: rgb(var(--rarity-ultimate));
+    }
+
+    .border-rarity-mythic {
+        border-color: rgb(var(--rarity-mythic));
+    }
+
+    /* Age Text Utilities */
+    .text-age-primitive {
+        color: rgb(var(--age-primitive));
+    }
+
+    .text-age-medieval {
+        color: rgb(var(--age-medieval));
+    }
+
+    .text-age-earlymodern {
+        color: rgb(var(--age-earlymodern));
+    }
+
+    .text-age-modern {
+        color: rgb(var(--age-modern));
+    }
+
+    .text-age-space {
+        color: rgb(var(--age-space));
+    }
+
+    .text-age-interstellar {
+        color: rgb(var(--age-interstellar));
+    }
+
+    .text-age-multiverse {
+        color: rgb(var(--age-multiverse));
+    }
+
+    .text-age-quantum {
+        color: rgb(var(--age-quantum));
+    }
+
+    .text-age-underworld {
+        color: rgb(var(--age-underworld));
+    }
+
+    .text-age-divine {
+        color: rgb(var(--age-divine));
+    }
+
+    /* Custom Scrollbar */
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: rgb(var(--bg-primary));
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgb(var(--bg-secondary));
+        border-radius: 4px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgb(var(--border));
+    }
+}
+@keyframes clock-pendulum {
+    0% { transform: rotate(-90deg); }
+    50% { transform: rotate(90deg); }
+    100% { transform: rotate(-90deg); }
+}
+
+.animate-clock-pendulum {
+    animation: clock-pendulum 2s infinite ease-in-out;
+}

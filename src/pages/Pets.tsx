@@ -1,0 +1,256 @@
+import { useState, useMemo } from 'react';
+import { useGameData } from '../hooks/useGameData';
+import { useProfile } from '../context/ProfileContext';
+import { Card } from '../components/UI/Card';
+import { Input } from '../components/UI/Input';
+import { cn, getRarityBgStyle } from '../lib/utils';
+import { Search, Cat, Sword, Heart, Zap, Shield, Star } from 'lucide-react';
+
+export default function Pets() {
+    const { profile } = useProfile();
+    const { data: petLibrary, loading: l1 } = useGameData<any>('PetLibrary.json');
+    const { data: petUpgrades, loading: l2 } = useGameData<any>('PetUpgradeLibrary.json');
+    const { data: petBalancing, loading: l3 } = useGameData<any>('PetBalancingLibrary.json');
+    const { data: spriteMapping, loading: l4 } = useGameData<any>('ManualSpriteMapping.json');
+
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterRarity, setFilterRarity] = useState<string | null>(null);
+    const [globalLevel, setGlobalLevel] = useState(50); // Global level slider
+
+    const loading = l1 || l2 || l3 || l4;
+    const petsConfig = spriteMapping?.pets;
+
+    // Build lookup from ManualSpriteMapping
+    const spriteLookup = useMemo(() => {
+        if (!petsConfig?.mapping) return {};
+        const lookup: Record<string, { spriteIndex: number; name: string }> = {};
+        Object.entries(petsConfig.mapping).forEach(([idx, info]: [string, any]) => {
+            const key = `${info.rarity}_${info.id}`;
+            lookup[key] = { spriteIndex: parseInt(idx), name: info.name };
+        });
+        return lookup;
+    }, [petsConfig]);
+
+    // Check if pet is active in profile
+    const isActiveInProfile = (rarity: string, id: number) => {
+        return profile.pets.active.some(p => p.rarity === rarity && p.id === id);
+    };
+
+    // Process Pets
+    const pets = useMemo(() => {
+        if (!petLibrary) return [];
+        return Object.values(petLibrary)
+            .map((pet: any) => {
+                const rarity = pet?.PetId?.Rarity || 'Common';
+                const id = pet?.PetId?.Id ?? 0;
+                const type = pet?.Type || 'Balanced';
+                const key = `${rarity}_${id}`;
+                const spriteInfo = spriteLookup[key];
+
+                return {
+                    id,
+                    rarity,
+                    type,
+                    key,
+                    name: spriteInfo?.name || `Pet #${id}`,
+                    spriteIndex: spriteInfo?.spriteIndex ?? -1,
+                };
+            })
+            .filter((pet) => {
+                const matchSearch = pet.name.toLowerCase().includes(searchTerm.toLowerCase());
+                const matchRarity = !filterRarity || pet.rarity === filterRarity;
+                return matchSearch && matchRarity;
+            })
+            .sort((a, b) => {
+                const rarityOrder = ['Common', 'Rare', 'Epic', 'Legendary', 'Ultimate', 'Mythic'];
+                const rDiff = rarityOrder.indexOf(a.rarity) - rarityOrder.indexOf(b.rarity);
+                return rDiff !== 0 ? rDiff : a.id - b.id;
+            });
+    }, [petLibrary, spriteLookup, searchTerm, filterRarity]);
+
+    // Calculate sprite position
+    const getSpriteStyle = (spriteIndex: number) => {
+        if (!petsConfig || spriteIndex < 0) return null;
+        const cols = petsConfig.grid?.columns || 8;
+        const spriteW = petsConfig.sprite_size?.width || 256;
+        const spriteH = petsConfig.sprite_size?.height || 256;
+        const sheetW = petsConfig.texture_size?.width || 2048;
+        const sheetH = petsConfig.texture_size?.height || 2048;
+
+        const col = spriteIndex % cols;
+        const row = Math.floor(spriteIndex / cols);
+        const x = col * spriteW;
+        const y = row * spriteH;
+
+        const scale = 64 / spriteW;
+
+        return {
+            backgroundImage: `url(/Texture2D/Pets.png)`,
+            backgroundPosition: `-${x * scale}px -${y * scale}px`,
+            backgroundSize: `${sheetW * scale}px ${sheetH * scale}px`,
+            width: '64px',
+            height: '64px',
+        };
+    };
+
+    const rarities = ['Common', 'Rare', 'Epic', 'Legendary', 'Ultimate', 'Mythic'];
+
+    return (
+        <div className="space-y-6 animate-fade-in pb-12">
+            <div className="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-border pb-6">
+                <div>
+                    <h1 className="text-3xl font-bold text-text-primary flex items-center gap-2">
+                        <Cat className="w-8 h-8 text-accent-secondary" />
+                        Pet Encyclopedia
+                    </h1>
+                    <p className="text-text-secondary">Complete pet database with stats and type information.</p>
+                </div>
+
+                <div className="flex gap-2 items-center flex-wrap">
+                    <div className="relative w-full md:w-40">
+                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-text-muted" />
+                        <Input
+                            placeholder="Search..."
+                            className="pl-9"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    <select
+                        className="bg-bg-input border border-border rounded-lg px-3 py-2 text-sm"
+                        value={filterRarity || ''}
+                        onChange={(e) => setFilterRarity(e.target.value || null)}
+                    >
+                        <option value="">All Rarities</option>
+                        {rarities.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                </div>
+            </div>
+
+            {/* Global Level Slider */}
+            <Card className="p-4">
+                <div className="flex items-center gap-4">
+                    <span className="text-sm font-bold text-text-secondary whitespace-nowrap">Display Level:</span>
+                    <input
+                        type="range"
+                        min={1}
+                        max={100}
+                        value={globalLevel}
+                        onChange={(e) => setGlobalLevel(parseInt(e.target.value))}
+                        className="flex-1 accent-accent-primary"
+                    />
+                    <span className="font-mono font-bold text-accent-primary w-10 text-center">{globalLevel}</span>
+                </div>
+            </Card>
+
+            {loading ? (
+                <div className="text-center py-12 text-text-muted">Loading Pets...</div>
+            ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {pets.map((pet) => {
+                        const isActive = isActiveInProfile(pet.rarity, pet.id);
+
+                        // Stats at global level
+                        const upgradeData = petUpgrades?.[pet.rarity]?.LevelInfo || [];
+                        const levelIdx = Math.min(Math.max(1, globalLevel) - 1, upgradeData.length - 1);
+                        const baseStats = upgradeData[Math.max(0, levelIdx)]?.PetStats?.Stats || [];
+
+                        const baseDmg = baseStats.find((s: any) => s.StatNode?.UniqueStat?.StatType === 'Damage')?.Value || 0;
+                        const baseHp = baseStats.find((s: any) => s.StatNode?.UniqueStat?.StatType === 'Health')?.Value || 0;
+
+                        const typeMod = petBalancing?.[pet.type] || { DamageMultiplier: 1, HealthMultiplier: 1 };
+                        const finalDmg = baseDmg * (typeMod.DamageMultiplier || 1);
+                        const finalHp = baseHp * (typeMod.HealthMultiplier || 1);
+
+                        const spriteStyle = getSpriteStyle(pet.spriteIndex);
+
+                        return (
+                            <Card key={pet.key} variant="hover" className={cn(
+                                "flex flex-col p-4 relative overflow-hidden transition-all",
+                                isActive ? "border-accent-primary ring-2 ring-accent-primary" : ""
+                            )}>
+                                {/* Glow */}
+                                <div className={cn(
+                                    "absolute top-0 right-0 w-32 h-32 rounded-full opacity-10 blur-2xl translate-x-10 -translate-y-10",
+                                    `bg-rarity-${pet.rarity.toLowerCase()}`
+                                )} />
+
+                                {/* Active Badge (read-only) */}
+                                {isActive && (
+                                    <div className="absolute top-2 right-2 p-1.5 rounded-full bg-accent-primary text-white z-20">
+                                        <Star className="w-4 h-4 fill-current" />
+                                    </div>
+                                )}
+
+                                {/* Header */}
+                                <div className="flex items-center gap-4 mb-4 relative z-10">
+                                    <div
+                                        className="w-16 h-16 rounded-xl flex items-center justify-center border-2 border-border overflow-hidden shrink-0"
+                                        style={getRarityBgStyle(pet.rarity)}
+                                    >
+                                        {spriteStyle ? (
+                                            <div style={spriteStyle} />
+                                        ) : (
+                                            <Cat className="w-8 h-8 text-text-muted" />
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="font-bold text-text-primary text-lg leading-tight truncate">{pet.name}</h3>
+                                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                            <span className={cn(
+                                                "text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-white/5",
+                                                `text-rarity-${pet.rarity.toLowerCase()}`
+                                            )}>
+                                                {pet.rarity}
+                                            </span>
+                                            <span className={cn(
+                                                "text-[10px] font-bold uppercase px-2 py-0.5 rounded-full",
+                                                pet.type === 'Damage' ? "bg-red-500/20 text-red-400" :
+                                                    pet.type === 'Health' ? "bg-green-500/20 text-green-400" :
+                                                        "bg-blue-500/20 text-blue-400"
+                                            )}>
+                                                {pet.type === 'Damage' ? <Zap className="w-3 h-3 inline mr-0.5" /> :
+                                                    pet.type === 'Health' ? <Shield className="w-3 h-3 inline mr-0.5" /> : null}
+                                                {pet.type}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Stats at global level */}
+                                <div className="grid grid-cols-2 gap-2 mt-auto">
+                                    <div className="bg-bg-input/50 p-2 rounded flex flex-col items-center">
+                                        <div className="flex items-center gap-1 text-xs text-text-muted mb-0.5">
+                                            <Sword className="w-3 h-3 text-red-400" /> Dmg
+                                        </div>
+                                        <div className="font-mono font-bold text-red-200 text-sm">
+                                            {Math.round(finalDmg).toLocaleString()}
+                                        </div>
+                                        <div className="text-[9px] text-text-muted">
+                                            x{typeMod.DamageMultiplier?.toFixed(1)}
+                                        </div>
+                                    </div>
+                                    <div className="bg-bg-input/50 p-2 rounded flex flex-col items-center">
+                                        <div className="flex items-center gap-1 text-xs text-text-muted mb-0.5">
+                                            <Heart className="w-3 h-3 text-green-400" /> HP
+                                        </div>
+                                        <div className="font-mono font-bold text-green-200 text-sm">
+                                            {Math.round(finalHp).toLocaleString()}
+                                        </div>
+                                        <div className="text-[9px] text-text-muted">
+                                            x{typeMod.HealthMultiplier?.toFixed(1)}
+                                        </div>
+                                    </div>
+                                </div>
+                            </Card>
+                        );
+                    })}
+                </div>
+            )}
+
+            {!loading && pets.length === 0 && (
+                <div className="text-center py-12 text-text-muted">No pets found matching your search.</div>
+            )}
+        </div>
+    );
+}
