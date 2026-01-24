@@ -20,17 +20,6 @@ jobs:
           npm install
           npm run build
 
-      - name: Fix absolute paths for sub-folder deployment
-        run: |
-          # Use Perl for robust multi-case replacement (handles all quotes, parents, and colons)
-          find dist -type f \( -name "*.js" -o -name "*.html" -o -name "*.css" \) -print0 | xargs -0 perl -pi -e 's|(["`\(\x27])/(Sprite|Texture2D|icons|parsed_configs)/|$1/fm/$2/|g'
-          
-          # Case sensitivity fix for specific identified issues (star.png -> Star.png)
-          find dist -type f \( -name "*.js" -o -name "*.html" \) -print0 | xargs -0 perl -pi -e 's/star.png/Star.png/g'
-          
-          # Clean up any potential double prefixes
-          find dist -type f \( -name "*.js" -o -name "*.html" -o -name "*.css" \) -print0 | xargs -0 perl -pi -e 's|/fm/fm/|/fm/|g'
-
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
         with:
