@@ -42,7 +42,8 @@ export const SKILL_MECHANICS: {
         interval?: number,
         delay?: number,
         isDuration?: boolean,
-        damageIsPerHit?: boolean
+        damageIsPerHit?: boolean,
+        descriptionIsPerHit?: boolean
     }
 } = {
     // --- Buff Skills (No direct damage, apply bonuses while active) ---
@@ -58,37 +59,36 @@ export const SKILL_MECHANICS: {
     "HigherMorale": { count: 0 },
 
     // --- Multi-Hit Single Target Skills (Target nearest, re-target on kill) ---
-    "2": { count: 3, isSingleTarget: true, delay: 0.2 }, // Arrows
-    "Arrows": { count: 3, isSingleTarget: true, delay: 0.2 },
-    "3": { count: 5, isSingleTarget: true, delay: 0.2 }, // Shuriken
-    "Shuriken": { count: 5, isSingleTarget: true, delay: 0.2 },
-    "11": { count: 5, isAOE: true, interval: 0.2, delay: 0.1 }, // Lightning (User confirmed: Hits all)
-    "Lightning": { count: 5, isAOE: true, interval: 0.2, delay: 0.1 },
+    "2": { count: 3, isSingleTarget: true, delay: 0.2, descriptionIsPerHit: true }, // Arrows (Per Arrow)
+    "Arrows": { count: 3, isSingleTarget: true, delay: 0.2, descriptionIsPerHit: true },
+    "3": { count: 5, isSingleTarget: true, delay: 0.2, descriptionIsPerHit: true }, // Shuriken (Per Shuriken)
+    "Shuriken": { count: 5, isSingleTarget: true, delay: 0.2, descriptionIsPerHit: true },
+    "11": { count: 5, isAOE: true, interval: 0.2, delay: 0.1, descriptionIsPerHit: true }, // Lightning (Per Hit)
+    "Lightning": { count: 5, isAOE: true, interval: 0.2, delay: 0.1, descriptionIsPerHit: true },
 
     // --- Multi-Hit AOE Skills ---
-    "4": { count: 8, isAOE: true, interval: 0.15 }, // Shout
-    "Shout": { count: 8, isAOE: true, interval: 0.15 },
-    "5": { count: 5, isAOE: true, interval: 0.3, delay: 1.0 }, // Meteorite
-    "Meteorite": { count: 5, isAOE: true, interval: 0.3, delay: 1.0 },
-    "16": { count: 3, isAOE: true, interval: 0.3, delay: 0.5 }, // CannonBarrage
-    "CannonBarrage": { count: 3, isAOE: true, interval: 0.3, delay: 0.5 },
+    "4": { count: 8, isAOE: true, interval: 0.15, descriptionIsPerHit: true }, // Shout (Per Hit)
+    "Shout": { count: 8, isAOE: true, interval: 0.15, descriptionIsPerHit: true },
+    "5": { count: 5, isAOE: true, interval: 0.3, delay: 1.0, descriptionIsPerHit: true }, // Meteorite (Per Hit)
+    "Meteorite": { count: 5, isAOE: true, interval: 0.3, delay: 1.0, descriptionIsPerHit: true },
+    "16": { count: 3, isAOE: true, interval: 0.3, delay: 0.5, descriptionIsPerHit: true }, // CannonBarrage (Per Hit)
+    "CannonBarrage": { count: 3, isAOE: true, interval: 0.3, delay: 0.5, descriptionIsPerHit: true },
 
     // --- Single Hit AOE Skills ---
-    "7": { count: 1, isAOE: true, delay: 0.25 }, // Stampede
-    "Stampede": { count: 1, isAOE: true, delay: 0.25 },
-    "8": { count: 1, isAOE: true, delay: 0.5 }, // Thorns
+    "7": { count: 2, isAOE: true, delay: 0.25, descriptionIsPerHit: true }, // Stampede (Avg 2 hits/target, Per Hit)
+    "Stampede": { count: 2, isAOE: true, delay: 0.25, descriptionIsPerHit: true },
+    "8": { count: 1, isAOE: true, delay: 0.5 }, // Thorns (Total)
     "Thorns": { count: 1, isAOE: true, delay: 0.5 },
-    "9": { count: 1, isAOE: true, delay: 1.5 }, // Bomb
+    "9": { count: 1, isAOE: true, delay: 1.5 }, // Bomb (Total)
     "Bomb": { count: 1, isAOE: true, delay: 1.5 },
-    "10": { count: 1, isAOE: true, delay: 0.5 }, // Worm
+    "10": { count: 1, isAOE: true, delay: 0.5 }, // Worm (Total)
     "Worm": { count: 1, isAOE: true, delay: 0.5 },
-    "14": { count: 15, isAOE: true, interval: 0.2, delay: 0.5 }, // RainOfArrows (~15 ticks)
+    "14": { count: 15, isAOE: true, interval: 0.2, delay: 0.5 }, // RainOfArrows (Total / hits)
     "RainOfArrows": { count: 15, isAOE: true, interval: 0.2, delay: 0.5 },
-    "15": { count: 1, isAOE: true, delay: 0.5 }, // StrafeRun
-    "StrafeRun": { count: 3, isAOE: true, delay: 0.5, interval: 0.25, damageIsPerHit: true },
+    "15": { count: 3, isAOE: true, delay: 0.5, interval: 0.25, damageIsPerHit: true, descriptionIsPerHit: true }, // StrafeRun (Per Hit)
+    "StrafeRun": { count: 3, isAOE: true, delay: 0.5, interval: 0.25, damageIsPerHit: true, descriptionIsPerHit: true },
 
     // --- Summon Skills (Creates entity that attacks periodically) ---
-    "17": { count: 10, isAOE: false, isSingleTarget: true, interval: 0.8, isDuration: true, damageIsPerHit: true }, // Drone: 10 hits over 8s
-    "Drone": { count: 10, isAOE: false, isSingleTarget: true, interval: 0.8, isDuration: true, damageIsPerHit: true },
+    "17": { count: 10, isAOE: false, isSingleTarget: true, interval: 0.8, isDuration: true, damageIsPerHit: true, descriptionIsPerHit: true }, // Drone
+    "Drone": { count: 10, isAOE: false, isSingleTarget: true, interval: 0.8, isDuration: true, damageIsPerHit: true, descriptionIsPerHit: true },
 };
-

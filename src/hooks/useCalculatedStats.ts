@@ -46,33 +46,48 @@ export function useTreeModifiers() {
             return profile.techTree[tree] || {};
         };
 
+        const validityCache = new Map<number, boolean>();
+
         const checkNodeValidity = (
             treeData: any,
             levels: Record<string, number>,
             nodeId: number,
             visited: Set<number> = new Set()
         ): boolean => {
+            if (validityCache.has(nodeId)) return validityCache.get(nodeId)!;
+
             // Prevent cycles
             if (visited.has(nodeId)) return false;
-            visited.add(nodeId);
 
             // Check level > 0
             const level = levels[nodeId];
-            if (!level || level <= 0) return false;
+            if (!level || level <= 0) {
+                validityCache.set(nodeId, false);
+                return false;
+            }
 
             // Check requirements
             const node = treeData.Nodes.find((n: any) => n.Id === nodeId);
-            if (!node) return false;
+            if (!node) {
+                validityCache.set(nodeId, false);
+                return false;
+            }
+
+            visited.add(nodeId);
 
             if (node.Requirements && node.Requirements.length > 0) {
                 for (const reqId of node.Requirements) {
                     // Recursive validity check
-                    if (!checkNodeValidity(treeData, levels, reqId, new Set(visited))) {
+                    if (!checkNodeValidity(treeData, levels, reqId, visited)) {
+                        visited.delete(nodeId);
+                        validityCache.set(nodeId, false);
                         return false;
                     }
                 }
             }
 
+            visited.delete(nodeId);
+            validityCache.set(nodeId, true);
             return true;
         };
 
@@ -86,11 +101,15 @@ export function useTreeModifiers() {
 
             // Pre-calculate validity for all nodes in this tree
             // We can optimize by only checking nodes with level > 0
+            validityCache.clear();
+
             for (const [nodeIdStr, level] of Object.entries(treeLevels)) {
                 if (typeof level !== 'number' || level <= 0) continue;
                 const nodeId = parseInt(nodeIdStr);
 
-                if (checkNodeValidity(treeData, treeLevels, nodeId)) {
+                // Skip validity check for 'max' mode (assume all nodes at max level are valid/accessible)
+                // or if it's 'empty' (already handled by treeLevels being empty)
+                if (treeMode === 'max' || checkNodeValidity(treeData, treeLevels, nodeId)) {
                     validNodes.add(nodeId);
                 }
             }

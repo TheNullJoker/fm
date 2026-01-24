@@ -183,7 +183,8 @@ export class StatEngine {
     private profile: UserProfile;
     private libs: LibraryData;
     private stats: AggregatedStats;
-    private nodeValidityCache: Map<number, boolean> = new Map();
+    private nodeValidityCache: Map<string, boolean> = new Map();
+    private validNodesCache: Map<string, Set<number>> = new Map();
     // Trackers
     public debugLogs: string[] = [];
     public displayStats: Record<string, number> = {};
@@ -276,14 +277,16 @@ export class StatEngine {
      * Helper to check recursively if a node's requirements are met
      */
     private checkNodeValidity(
+        treeName: string,
         treeData: any,
         levels: Record<string, number>,
         nodeId: number,
         visited: Set<number> = new Set()
     ): boolean {
+        const cacheKey = `${treeName}:${nodeId}`;
         // 1. Controllo Cache: Se lo abbiamo già calcolato in questo ciclo, ritorna il risultato immediato
-        if (this.nodeValidityCache.has(nodeId)) {
-            return this.nodeValidityCache.get(nodeId)!;
+        if (this.nodeValidityCache.has(cacheKey)) {
+            return this.nodeValidityCache.get(cacheKey)!;
         }
 
         // Prevent cycles
@@ -292,14 +295,14 @@ export class StatEngine {
         // Check level > 0
         const level = levels[nodeId];
         if (!level || level <= 0) {
-            this.nodeValidityCache.set(nodeId, false);
+            this.nodeValidityCache.set(cacheKey, false);
             return false;
         }
 
         // Check requirements
         const node = treeData.Nodes.find((n: any) => n.Id === nodeId);
         if (!node) {
-            this.nodeValidityCache.set(nodeId, false);
+            this.nodeValidityCache.set(cacheKey, false);
             return false;
         }
 
@@ -311,7 +314,7 @@ export class StatEngine {
         if (node.Requirements && node.Requirements.length > 0) {
             for (const reqId of node.Requirements) {
                 // Recursive validity check
-                if (!this.checkNodeValidity(treeData, levels, reqId, visited)) {
+                if (!this.checkNodeValidity(treeName, treeData, levels, reqId, visited)) {
                     isValid = false;
                     break;
                 }
@@ -321,7 +324,7 @@ export class StatEngine {
         visited.delete(nodeId); // Backtrack
 
         // 2. Salva il risultato in Cache
-        this.nodeValidityCache.set(nodeId, isValid);
+        this.nodeValidityCache.set(cacheKey, isValid);
         return isValid;
     }
 
@@ -332,6 +335,7 @@ export class StatEngine {
 
         // Pulisci la cache ad ogni nuovo calcolo
         this.nodeValidityCache.clear();
+        this.validNodesCache.clear();
 
         // Reset secondary stats
         this.secondaryStats = {
@@ -424,7 +428,7 @@ export class StatEngine {
             for (const [nodeIdStr, level] of Object.entries(treeLevels)) {
                 if (typeof level !== 'number' || level <= 0) continue;
                 const nodeId = parseInt(nodeIdStr);
-                if (this.checkNodeValidity(treeData, treeLevels, nodeId)) {
+                if (this.checkNodeValidity(tree, treeData, treeLevels, nodeId)) {
                     validNodes.add(nodeId);
                 }
             }
@@ -766,7 +770,7 @@ export class StatEngine {
             for (const [nodeIdStr, level] of Object.entries(treeLevels)) {
                 if (typeof level !== 'number' || level <= 0) continue;
                 const nodeId = parseInt(nodeIdStr);
-                if (this.checkNodeValidity(treeData, treeLevels, nodeId)) {
+                if (this.checkNodeValidity(tree, treeData, treeLevels, nodeId)) {
                     validNodes.add(nodeId);
                 }
             }
