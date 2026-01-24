@@ -56,7 +56,7 @@ function EggSprite({ rarity, size = 32 }: { rarity: string; size?: number }) {
             style={{
                 width: size,
                 height: size,
-                backgroundImage: 'url(/Texture2D/Eggs.png)',
+                backgroundImage: 'url(./Texture2D/Eggs.png)',
                 backgroundSize: '400% 400%',
                 backgroundPosition: `${xPos}% ${yPos}%`,
                 imageRendering: 'pixelated'

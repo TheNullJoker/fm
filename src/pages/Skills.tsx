@@ -80,7 +80,7 @@ export default function Skills() {
         const scale = 64 / spriteW;
 
         return {
-            backgroundImage: `url(/Texture2D/SkillIcons.png)`,
+            backgroundImage: `url(./Texture2D/SkillIcons.png)`,
             backgroundPosition: `-${x * scale}px -${y * scale}px`,
             backgroundSize: `${sheetW * scale}px ${sheetH * scale}px`,
             width: '64px',

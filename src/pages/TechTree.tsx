@@ -79,7 +79,7 @@ export default function TechTree() {
         const cssY = sheetH - y - height;
 
         return {
-            backgroundImage: `url(/Texture2D/TechTreeIcons.png)`,
+            backgroundImage: `url(./Texture2D/TechTreeIcons.png)`,
             backgroundPosition: `-${x * scale}px -${cssY * scale}px`,
             backgroundSize: `${sheetW * scale}px ${sheetH * scale}px`,
             width: `${ICON_SIZE}px`,

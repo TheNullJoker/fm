@@ -40,7 +40,7 @@ export function GameIcon({ name, size = 24, className, alt, ...props }: GameIcon
 
         const spriteStyle: React.CSSProperties = {
             ...style,
-            backgroundImage: `url(/Texture2D/${iconsMap.texture || 'Icons.png'})`,
+            backgroundImage: `url(./Texture2D/${iconsMap.texture || 'Icons.png'})`,
             backgroundPosition: `${posX}% ${posY}%`,
             backgroundSize: `${bgSizeX}% ${bgSizeY}%`,
             backgroundRepeat: 'no-repeat',

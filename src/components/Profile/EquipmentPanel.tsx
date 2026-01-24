@@ -68,7 +68,7 @@ function getInventoryIconStyle(slotKey: string, size: number = 48): React.CSSPro
     const scale = size / spriteSize;
 
     return {
-        backgroundImage: `url(/Texture2D/InventoryTextures.png)`,
+        backgroundImage: `url(./Texture2D/InventoryTextures.png)`,
         backgroundPosition: `-${col * spriteSize * scale}px -${row * spriteSize * scale}px`,
         backgroundSize: `${sheetWidth * scale}px ${sheetHeight * scale}px`,
         width: `${size}px`,
@@ -670,7 +670,7 @@ function MountSlotWidget() {
         const size = 48;
         const scale = size / spriteSize;
         return {
-            backgroundImage: `url(/Texture2D/InventoryTextures.png)`,
+            backgroundImage: `url(./Texture2D/InventoryTextures.png)`,
             backgroundPosition: `-${col * spriteSize * scale}px -${row * spriteSize * scale}px`,
             backgroundSize: `${512 * scale}px ${512 * scale}px`,
             width: `${size}px`,

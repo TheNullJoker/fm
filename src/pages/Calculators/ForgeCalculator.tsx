@@ -74,7 +74,7 @@ function getAgeIconStyle(ageIndex: number, size: number = 32): React.CSSProperti
     const scale = size / spriteSize;
 
     return {
-        backgroundImage: `url(/Texture2D/AgeIcons.png)`,
+        backgroundImage: `url(./Texture2D/AgeIcons.png)`,
         backgroundPosition: `-${col * spriteSize * scale}px -${row * spriteSize * scale}px`,
         backgroundSize: `${sheetWidth * scale}px ${sheetHeight * scale}px`,
         width: `${size}px`,
@@ -96,7 +96,7 @@ function getTechTreeIconStyle(spriteIndex: number, size: number = 32): React.CSS
     const scale = size / spriteSize;
 
     return {
-        backgroundImage: `url(/Texture2D/TechTreeIcons.png)`,
+        backgroundImage: `url(./Texture2D/TechTreeIcons.png)`,
         backgroundPosition: `-${col * spriteSize * scale}px -${row * spriteSize * scale}px`,
         backgroundSize: `${sheetSize * scale}px ${sheetSize * scale}px`,
         width: `${size}px`,

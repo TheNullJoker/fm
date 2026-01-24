@@ -85,7 +85,7 @@ export default function Pets() {
         const scale = 64 / spriteW;
 
         return {
-            backgroundImage: `url(/Texture2D/Pets.png)`,
+            backgroundImage: `url(./Texture2D/Pets.png)`,
             backgroundPosition: `-${x * scale}px -${y * scale}px`,
             backgroundSize: `${sheetW * scale}px ${sheetH * scale}px`,
             width: '64px',

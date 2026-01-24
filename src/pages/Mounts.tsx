@@ -84,7 +84,7 @@ export default function Mounts() {
         const scale = 80 / spriteW;
 
         return {
-            backgroundImage: `url(/Texture2D/MountIcons.png)`,
+            backgroundImage: `url(./Texture2D/MountIcons.png)`,
             backgroundPosition: `-${x * scale}px -${y * scale}px`,
             backgroundSize: `${sheetW * scale}px ${sheetH * scale}px`,
             width: '80px',

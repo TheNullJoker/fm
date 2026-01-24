@@ -300,7 +300,7 @@ export function MountPanel() {
                     {/* Mount icon from InventoryTextures.png (index 8 = row 3, col 1) */}
                     <div
                         style={{
-                            backgroundImage: `url(/Texture2D/InventoryTextures.png)`,
+                            backgroundImage: `url(./Texture2D/InventoryTextures.png)`,
                             backgroundPosition: `-0px -${128 * 2 * (48 / 128)}px`,
                             backgroundSize: `${512 * (48 / 128)}px ${512 * (48 / 128)}px`,
                             width: '48px',

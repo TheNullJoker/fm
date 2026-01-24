@@ -85,7 +85,7 @@ function getAgeIconStyle(ageIndex: number, size: number = 32): React.CSSProperti
     const scale = size / spriteSize;
 
     return {
-        backgroundImage: `url(/Texture2D/AgeIcons.png)`,
+        backgroundImage: `url(./Texture2D/AgeIcons.png)`,
         backgroundPosition: `-${col * spriteSize * scale}px -${row * spriteSize * scale}px`,
         backgroundSize: `${sheetWidth * scale}px ${sheetHeight * scale}px`,
         width: `${size}px`,
