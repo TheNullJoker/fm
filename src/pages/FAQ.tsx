@@ -1,5 +1,5 @@
 import { Card } from '../components/UI/Card';
-import { HelpCircle, Heart, Zap, Coffee, Globe, ExternalLink } from 'lucide-react';
+import { HelpCircle, Heart, Zap, Coffee, Globe, ExternalLink, MessageCircle } from 'lucide-react';
 
 export default function FAQ() {
     return (
@@ -36,6 +36,14 @@ export default function FAQ() {
                                         className="flex items-center gap-2 px-4 py-2 rounded-xl bg-bg-input border border-border hover:border-accent-primary transition-all text-xs font-bold"
                                     >
                                         <Globe className="w-4 h-4" /> 1vcian.me
+                                    </a>
+                                    <a
+                                        href="https://discord.com/invite/fmaster"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-bg-input border border-border hover:border-accent-primary transition-all text-xs font-bold text-indigo-400 hover:text-indigo-300"
+                                    >
+                                        <MessageCircle className="w-4 h-4" /> DISCORD
                                     </a>
                                     <a
                                         href="mailto:medrihanlucian@gmail.com"

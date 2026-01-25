@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import {
     Star, Egg, Key, Shirt, Cat,
-    Cpu, Swords, Shield, Lock, Coins, Palette, FileJson, HelpCircle, Github, TrendingUp, Hammer
+    Cpu, Swords, Shield, Lock, Coins, Palette, FileJson, HelpCircle, Github, TrendingUp, Hammer, Coffee
 } from 'lucide-react';
 import { GameIcon } from '../UI/GameIcon';
 import { useProfile } from '../../context/ProfileContext';
@@ -58,6 +58,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 { name: 'Configs', path: '/configs', icon: FileJson },
                 { name: 'FAQ', path: '/faq', icon: HelpCircle },
                 { name: 'GitHub', path: 'https://github.com/1vcian/fm', icon: Github, external: true },
+            ]
+        },
+        {
+            title: 'Support',
+            items: [
+                { name: 'Buy me a coffee', path: 'https://www.buymeacoffee.com/1vcian', icon: Coffee, external: true },
             ]
         }
     ];

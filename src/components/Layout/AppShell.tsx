@@ -71,10 +71,10 @@ export default function AppShell() {
                     href="https://www.buymeacoffee.com/1vcian"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="fixed bottom-6 right-6 z-50 bg-[#FFDD00] text-black font-bold py-3 px-4 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center gap-2 animate-bounce-slow"
+                    className="fixed bottom-6 right-6 z-50 bg-[#FFDD00] text-black font-bold py-2 px-3 md:py-3 md:px-4 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center gap-2 animate-bounce-slow"
                 >
                     <Coffee className="w-5 h-5" />
-                    <span className="hidden md:inline">Buy me a coffee</span>
+                    <span className="font-bold">Buy me a coffee</span>
                 </a>
             </div>
         </div>

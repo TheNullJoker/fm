@@ -11,6 +11,9 @@ export default function PvpArena() {
                 <p className="text-text-secondary mt-2">
                     Build an opponent and simulate a battle against them.
                 </p>
+                <p className="text-text-muted text-xs mt-1 italic">
+                    Empirical tool based on observations and uncertain deductions. Predictions may not be 100% accurate.
+                </p>
             </header>
 
 
@@ -20,6 +23,6 @@ export default function PvpArena() {
             <div className="absolute -right-10 -bottom-10 opacity-5 pointer-events-none overflow-hidden">
                 <img src="./Texture2D/TechTreePower.png" alt="" className="w-64 h-64 object-contain grayscale" />
             </div>
-        </div>
+        </div >
     );
 }
