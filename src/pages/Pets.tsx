@@ -5,19 +5,21 @@ import { Card } from '../components/UI/Card';
 import { Input } from '../components/UI/Input';
 import { cn, getRarityBgStyle } from '../lib/utils';
 import { Search, Cat, Sword, Heart, Zap, Shield, Star } from 'lucide-react';
+import { formatNumber } from '../utils/format';
 
 export default function Pets() {
     const { profile } = useProfile();
     const { data: petLibrary, loading: l1 } = useGameData<any>('PetLibrary.json');
     const { data: petUpgrades, loading: l2 } = useGameData<any>('PetUpgradeLibrary.json');
     const { data: petBalancing, loading: l3 } = useGameData<any>('PetBalancingLibrary.json');
+    const { data: petUnlockLib, loading: l3b } = useGameData<any>('SecondaryStatPetUnlockLibrary.json');
     const { data: spriteMapping, loading: l4 } = useGameData<any>('ManualSpriteMapping.json');
 
     const [searchTerm, setSearchTerm] = useState('');
     const [filterRarity, setFilterRarity] = useState<string | null>(null);
     const [globalLevel, setGlobalLevel] = useState(50); // Global level slider
 
-    const loading = l1 || l2 || l3 || l4;
+    const loading = l1 || l2 || l3 || l3b || l4;
     const petsConfig = spriteMapping?.pets;
 
     // Build lookup from ManualSpriteMapping
@@ -101,7 +103,7 @@ export default function Pets() {
                 <div>
                     <h1 className="text-3xl font-bold text-text-primary flex items-center gap-2">
                         <Cat className="w-8 h-8 text-accent-secondary" />
-                        Pet Encyclopedia
+                        Pet Wiki
                     </h1>
                     <p className="text-text-secondary">Complete pet database with stats and type information.</p>
                 </div>
@@ -134,7 +136,7 @@ export default function Pets() {
                     <input
                         type="range"
                         min={1}
-                        max={100}
+                        max={petUpgrades?.Common?.LevelInfo?.length || 100}
                         value={globalLevel}
                         onChange={(e) => setGlobalLevel(parseInt(e.target.value))}
                         className="flex-1 accent-accent-primary"
@@ -220,26 +222,33 @@ export default function Pets() {
                                 {/* Stats at global level */}
                                 <div className="grid grid-cols-2 gap-2 mt-auto">
                                     <div className="bg-bg-input/50 p-2 rounded flex flex-col items-center">
-                                        <div className="flex items-center gap-1 text-xs text-text-muted mb-0.5">
-                                            <Sword className="w-3 h-3 text-red-400" /> Dmg
+                                        <div className="flex items-center gap-1 text-[10px] text-text-muted mb-0.5 uppercase font-bold">
+                                            <Sword className="w-3 h-3 text-red-400" /> Base Dmg
                                         </div>
                                         <div className="font-mono font-bold text-red-200 text-sm">
-                                            {Math.round(finalDmg).toLocaleString()}
+                                            {formatNumber(finalDmg)}
                                         </div>
-                                        <div className="text-[9px] text-text-muted">
-                                            x{typeMod.DamageMultiplier?.toFixed(1)}
+                                        <div className="text-[9px] text-text-muted mt-0.5">
+                                            {Math.round(finalDmg).toLocaleString()}
                                         </div>
                                     </div>
                                     <div className="bg-bg-input/50 p-2 rounded flex flex-col items-center">
-                                        <div className="flex items-center gap-1 text-xs text-text-muted mb-0.5">
-                                            <Heart className="w-3 h-3 text-green-400" /> HP
+                                        <div className="flex items-center gap-1 text-[10px] text-text-muted mb-0.5 uppercase font-bold">
+                                            <Heart className="w-3 h-3 text-green-400" /> Base HP
                                         </div>
                                         <div className="font-mono font-bold text-green-200 text-sm">
+                                            {formatNumber(finalHp)}
+                                        </div>
+                                        <div className="text-[9px] text-text-muted mt-0.5">
                                             {Math.round(finalHp).toLocaleString()}
                                         </div>
-                                        <div className="text-[9px] text-text-muted">
-                                            x{typeMod.HealthMultiplier?.toFixed(1)}
-                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-between mt-4 pb-1">
+                                    <div className="text-[10px] font-bold text-text-muted uppercase">Skills</div>
+                                    <div className="bg-accent-primary/10 text-accent-primary px-2 py-0.5 rounded text-xs font-mono font-bold">
+                                        {petUnlockLib?.[pet.rarity]?.NumberOfSecondStats || 0}
                                     </div>
                                 </div>
                             </Card>

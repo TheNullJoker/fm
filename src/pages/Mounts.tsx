@@ -4,18 +4,20 @@ import { useProfile } from '../context/ProfileContext';
 import { Card } from '../components/UI/Card';
 import { Input } from '../components/UI/Input';
 import { cn, getRarityBgStyle } from '../lib/utils';
-import { Star, Search, Crosshair, Circle } from 'lucide-react';
+import { Star, Search } from 'lucide-react';
 
 export default function Mounts() {
     const { profile } = useProfile();
     const { data: mountLibrary, loading: l1 } = useGameData<any>('MountLibrary.json');
+    const { data: mountUpgrades, loading: l1b } = useGameData<any>('MountUpgradeLibrary.json');
+    const { data: petUnlockLib, loading: l1c } = useGameData<any>('SecondaryStatPetUnlockLibrary.json');
     const { data: spriteMapping, loading: l2 } = useGameData<any>('ManualSpriteMapping.json');
 
     const [searchTerm, setSearchTerm] = useState('');
     const [filterRarity, setFilterRarity] = useState<string | null>(null);
     const [globalLevel, setGlobalLevel] = useState(50);
 
-    const loading = l1 || l2;
+    const loading = l1 || l1b || l1c || l2;
     const mountsConfig = spriteMapping?.mounts;
 
     // Build sprite lookup
@@ -100,7 +102,7 @@ export default function Mounts() {
                 <div>
                     <h1 className="text-4xl font-bold bg-gradient-to-r from-accent-primary to-accent-secondary bg-clip-text text-transparent inline-flex items-center gap-3">
                         <Star className="w-8 h-8 text-accent-primary" />
-                        Mount Encyclopedia
+                        Mount Wiki
                     </h1>
                     <p className="text-text-secondary">
                         Complete mount database with stats.
@@ -135,7 +137,7 @@ export default function Mounts() {
                     <input
                         type="range"
                         min={1}
-                        max={100}
+                        max={mountUpgrades?.Common?.LevelInfo?.length || 100}
                         value={globalLevel}
                         onChange={(e) => setGlobalLevel(parseInt(e.target.value))}
                         className="flex-1 accent-accent-primary"
@@ -194,16 +196,38 @@ export default function Mounts() {
                                 </div>
 
                                 {/* Mount Stats */}
-                                <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
-                                    <div className="bg-bg-input/50 p-2 rounded flex items-center gap-2">
-                                        <Circle className="w-3 h-3 text-accent-secondary" />
-                                        <span className="text-text-muted">Radius:</span>
-                                        <span className="font-mono font-bold ml-auto">{mount.colliderRadius.toFixed(2)}</span>
-                                    </div>
-                                    <div className="bg-bg-input/50 p-2 rounded flex items-center gap-2">
-                                        <Crosshair className="w-3 h-3 text-accent-tertiary" />
-                                        <span className="text-text-muted">Offset:</span>
-                                        <span className="font-mono font-bold ml-auto text-[10px]">{mount.unitOffset.X.toFixed(1)},{mount.unitOffset.Y.toFixed(1)}</span>
+                                <div className="grid grid-cols-2 gap-2 mb-3">
+                                    {(() => {
+                                        const upgradeData = mountUpgrades?.[mount.rarity]?.LevelInfo || [];
+                                        const levelIdx = Math.min(Math.max(1, globalLevel) - 1, upgradeData.length - 1);
+                                        const stats = upgradeData[Math.max(0, levelIdx)]?.MountStats?.Stats || [];
+
+                                        const damageStat = stats.find((s: any) => s.StatNode?.UniqueStat?.StatType === 'Damage');
+                                        const healthStat = stats.find((s: any) => s.StatNode?.UniqueStat?.StatType === 'Health');
+
+                                        return (
+                                            <>
+                                                <div className="bg-bg-input/50 p-2 rounded flex flex-col items-center">
+                                                    <span className="text-[10px] text-text-muted uppercase font-bold mb-1">Base Dmg</span>
+                                                    <span className="font-mono font-bold text-red-200">
+                                                        +{((damageStat?.Value || 0) * 100).toFixed(2)}%
+                                                    </span>
+                                                </div>
+                                                <div className="bg-bg-input/50 p-2 rounded flex flex-col items-center">
+                                                    <span className="text-[10px] text-text-muted uppercase font-bold mb-1">Base HP</span>
+                                                    <span className="font-mono font-bold text-green-200">
+                                                        +{((healthStat?.Value || 0) * 100).toFixed(2)}%
+                                                    </span>
+                                                </div>
+                                            </>
+                                        );
+                                    })()}
+                                </div>
+
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="text-[10px] font-bold text-text-muted uppercase">Skills</div>
+                                    <div className="bg-accent-primary/10 text-accent-primary px-2 py-0.5 rounded text-xs font-mono font-bold">
+                                        {petUnlockLib?.[mount.rarity]?.NumberOfSecondStats || 0}
                                     </div>
                                 </div>
 

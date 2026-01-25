@@ -3,20 +3,63 @@ import { getItemImage } from '../utils/itemAssets';
 import { useGameData } from '../hooks/useGameData';
 import { Card } from '../components/UI/Card';
 import { GameIcon } from '../components/UI/GameIcon';
-import { Sword, Shield, Anchor, Ghost, Hammer, HelpCircle } from 'lucide-react';
-import { cn, getAgeBgStyle } from '../lib/utils';
+import { Sword } from 'lucide-react';
+import { cn, getAgeBgStyle, getAgeIconStyle, getInventoryIconStyle } from '../lib/utils';
 import { AGES } from '../utils/constants';
+import { useTreeModifiers } from '../hooks/useCalculatedStats';
+import { formatNumber } from '../utils/format';
 
-const SLOTS = ['Weapon', 'Helmet', 'Armour', 'Gloves', 'Shoes', 'Necklace', 'Ring', 'Belt', 'Legacy'];
+const SLOTS = ['Weapon', 'Helmet', 'Armour', 'Gloves', 'Shoes', 'Necklace', 'Ring', 'Belt'];
 
 export default function Items() {
     const { data: itemLibrary, loading: loadingItemLibrary } = useGameData<any>('ItemBalancingLibrary.json');
     const { data: secondaryParams, loading: loadingSecondaryParams } = useGameData<any>('SecondaryStatItemUnlockLibrary.json');
     const { data: autoMapping, loading: loadingAutoMapping } = useGameData<any>('AutoItemMapping.json');
+    const { data: balancingConfig } = useGameData<any>('ItemBalancingConfig.json');
+    const { data: weaponLibrary } = useGameData<any>('WeaponLibrary.json');
+    const { data: projectilesLibrary } = useGameData<any>('ProjectilesLibrary.json');
+    const techModifiers = useTreeModifiers();
 
     // Default to first age (Primitive)
     const [selectedAgeIdx, setSelectedAgeIdx] = useState<number>(0);
     const [selectedSlot, setSelectedSlot] = useState<string>('Weapon');
+    const [selectedLevel, setSelectedLevel] = useState<number>(1);
+
+    // Dynamic Max Level calculation
+    const currentMaxLevel = useMemo(() => {
+        const base = balancingConfig?.ItemBaseMaxLevel || 98;
+        const slotBonusKey = {
+            'Weapon': 'WeaponLevelUp',
+            'Helmet': 'HelmetLevelUp',
+            'Armour': 'BodyLevelUp',
+            'Gloves': 'GloveLevelUp',
+            'Belt': 'BeltLevelUp',
+            'Necklace': 'NecklaceLevelUp',
+            'Ring': 'RingLevelUp',
+            'Shoes': 'ShoeLevelUp'
+        }[selectedSlot] || '';
+
+        const bonus = techModifiers[slotBonusKey] || 0;
+        return base + bonus;
+    }, [balancingConfig, selectedSlot, techModifiers]);
+
+    // Scaling factor from config
+    const levelScaling = balancingConfig?.LevelScalingBase || 1.01;
+    const meleeBaseMulti = balancingConfig?.PlayerMeleeDamageMultiplier || 1.6;
+
+    // Tech stat bonus key for the current slot
+    const statBonusKey = useMemo(() => ({
+        'Weapon': 'WeaponBonus',
+        'Helmet': 'HelmetBonus',
+        'Armour': 'BodyBonus',
+        'Gloves': 'GloveBonus',
+        'Belt': 'BeltBonus',
+        'Necklace': 'NecklaceBonus',
+        'Ring': 'RingBonus',
+        'Shoes': 'ShoeBonus'
+    }[selectedSlot] || ''), [selectedSlot]);
+
+    const statMultiplier = useMemo(() => 1 + (techModifiers[statBonusKey] || 0), [techModifiers, statBonusKey]);
 
     const loading = loadingItemLibrary || loadingSecondaryParams || loadingAutoMapping;
 
@@ -30,17 +73,11 @@ export default function Items() {
     }, [itemLibrary, selectedAgeIdx, selectedSlot]);
 
     const getIconForSlot = (slot: string) => {
-        switch (slot) {
-            case 'Weapon': return <Sword className="w-6 h-6" />;
-            case 'Helmet': return <Ghost className="w-6 h-6" />;
-            case 'Armour': return <Shield className="w-6 h-6" />;
-            case 'Gloves': return <Hammer className="w-6 h-6" />;
-            case 'Shoes': return <Anchor className="w-6 h-6" />;
-            case 'Necklace': return <GameIcon name="star" className="w-6 h-6" />;
-            case 'Ring': return <HelpCircle className="w-6 h-6" />; // Need ring icon
-            case 'Belt': return <GameIcon name="hammer" className="w-6 h-6" />; // Placeholder
-            default: return <GameIcon name="star" className="w-6 h-6" />;
+        const style = getInventoryIconStyle(slot, 24);
+        if (style) {
+            return <div style={style} className="shrink-0" />;
         }
+        return <GameIcon name="star" className="w-6 h-6" />;
     };
 
     return (
@@ -51,7 +88,7 @@ export default function Items() {
                 <div>
                     <h1 className="text-4xl font-bold bg-gradient-to-r from-accent-primary to-accent-secondary bg-clip-text text-transparent inline-flex items-center gap-3">
                         <Sword className="w-10 h-10 text-accent-primary" />
-                        Item Encyclopedia
+                        Item Wiki
                     </h1>
                     <p className="text-text-muted mt-1">Browse equipment stats across all ages.</p>
                 </div>
@@ -70,12 +107,14 @@ export default function Items() {
                             )}
                         >
                             {/* Placeholder for Age Image */}
-                            <div className={cn(
-                                "w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg",
-                                selectedAgeIdx === idx ? "bg-accent-primary text-white" : "bg-bg-input text-text-muted"
-                            )}>
-                                {idx + 1}
-                            </div>
+                            {/* Age Sprite Icon */}
+                            <div
+                                style={getAgeIconStyle(idx, 48)}
+                                className={cn(
+                                    "shrink-0 rounded bg-white/10",
+                                    selectedAgeIdx === idx ? "opacity-100" : "opacity-40 grayscale"
+                                )}
+                            />
                             <span className={cn(
                                 "text-xs font-bold whitespace-nowrap",
                                 selectedAgeIdx === idx ? "text-accent-primary" : "text-text-secondary"
@@ -104,6 +143,35 @@ export default function Items() {
                         </button>
                     ))}
                 </div>
+
+                {/* Level Slider */}
+                <Card className="p-4 bg-bg-secondary/50 border-accent-primary/20">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div className="flex items-center gap-4">
+                            <div className="p-2 bg-accent-primary/10 rounded-lg">
+                                <GameIcon name="hammer" className="w-8 h-8" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-white">Item Level</h3>
+                                <p className="text-xs text-text-muted">Simulate stats at different levels</p>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 flex items-center gap-6">
+                            <input
+                                type="range"
+                                min="1"
+                                max={currentMaxLevel}
+                                value={selectedLevel}
+                                onChange={(e) => setSelectedLevel(parseInt(e.target.value))}
+                                className="flex-1 h-3 bg-bg-input rounded-lg appearance-none cursor-pointer accent-accent-primary"
+                            />
+                            <div className="min-w-[80px] bg-accent-primary/20 text-accent-primary px-3 py-1.5 rounded-lg font-mono font-bold text-center border border-accent-primary/30">
+                                Lv {selectedLevel}
+                            </div>
+                        </div>
+                    </div>
+                </Card>
             </div>
 
             {loading ? (
@@ -150,12 +218,67 @@ export default function Items() {
 
                                     {/* Stats */}
                                     <div className="space-y-2">
-                                        {stats.map((stat: any, idx: number) => (
-                                            <div key={idx} className="flex justify-between items-center bg-bg-input/50 p-2 rounded border border-border/30">
-                                                <span className="text-sm text-text-secondary">{stat.StatNode?.UniqueStat?.StatType}</span>
-                                                <span className="font-mono font-bold text-text-primary">{stat.Value?.toLocaleString()}</span>
-                                            </div>
-                                        ))}
+                                        {stats.map((stat: any, idx: number) => {
+                                            const statType = stat.StatNode?.UniqueStat?.StatType;
+                                            let baseValue = stat.Value || 0;
+
+                                            // Apply scaling based on selected level
+                                            let scaledValue = baseValue * Math.pow(levelScaling, Math.max(0, selectedLevel - 1));
+
+                                            // Apply Tech Tree stat multiplier
+                                            scaledValue *= statMultiplier;
+
+                                            // Apply Melee multiplier for weapons if applicable
+                                            if (selectedSlot === 'Weapon' && (statType === 'Damage' || statType === 'Attack')) {
+                                                const weaponKey = `{'Age': ${selectedAgeIdx}, 'Type': 'Weapon', 'Idx': ${item.ItemId?.Idx}}`;
+                                                const weaponData = weaponLibrary?.[weaponKey];
+                                                // AttackRange < 1 means Melee
+                                                if (weaponData && (weaponData.AttackRange ?? 0) < 1) {
+                                                    scaledValue *= meleeBaseMulti;
+                                                }
+                                            }
+
+                                            return (
+                                                <div key={idx} className="flex flex-col bg-bg-input/50 p-2 rounded border border-border/30">
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-xs text-text-secondary">Base {statType}</span>
+                                                        <span className="font-mono font-bold text-text-primary">
+                                                            {formatNumber(Math.floor(scaledValue))}
+                                                        </span>
+                                                    </div>
+                                                    <div className="text-[9px] text-text-muted text-right mt-0.5">
+                                                        {Math.floor(scaledValue).toLocaleString()}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+
+                                        {/* Weapon Specific Info (Range/Speed) */}
+                                        {selectedSlot === 'Weapon' && (() => {
+                                            const weaponKey = `{'Age': ${selectedAgeIdx}, 'Type': 'Weapon', 'Idx': ${item.ItemId?.Idx}}`;
+                                            const weaponData = weaponLibrary?.[weaponKey];
+                                            if (!weaponData) return null;
+
+                                            const projectileId = weaponData.ProjectileId;
+                                            const projectileData = (projectileId !== undefined && projectileId >= 0)
+                                                ? projectilesLibrary?.[String(projectileId)]
+                                                : null;
+
+                                            return (
+                                                <div className="mt-4 pt-4 border-t border-border/30 grid grid-cols-2 gap-2">
+                                                    <div className="bg-bg-input/50 p-2 rounded border border-border/30 flex flex-col">
+                                                        <span className="text-[10px] text-text-muted uppercase font-bold">Range</span>
+                                                        <span className="font-mono font-bold text-text-primary">{weaponData.AttackRange?.toFixed(1) || '0.0'}</span>
+                                                    </div>
+                                                    {projectileData && (weaponData.AttackRange ?? 0) > 1 && (
+                                                        <div className="bg-bg-input/50 p-2 rounded border border-border/30 flex flex-col">
+                                                            <span className="text-[10px] text-text-muted uppercase font-bold">Proj Speed</span>
+                                                            <span className="font-mono font-bold text-text-primary">{projectileData.Speed || 'N/A'}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
 
                                         {/* Secondary Stats Placeholder */}
                                         {numSecondary > 0 && (

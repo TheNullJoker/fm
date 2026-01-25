@@ -4,7 +4,7 @@ import { useTreeMode } from '../../context/TreeModeContext';
 import { useGameData } from '../../hooks/useGameData';
 import { GameIcon } from '../../components/UI/GameIcon';
 import { ArrowRightLeft } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn, getAgeIconStyle } from '../../lib/utils';
 import { AGES } from '../../utils/constants';
 
 // Helper types matching JSON structure
@@ -64,26 +64,6 @@ interface GuildWarDayConfig {
     };
 }
 
-// Inline helper until shared util is created/verified
-function getAgeIconStyle(ageIndex: number, size: number = 32): React.CSSProperties {
-    const col = ageIndex % 4;
-    const row = Math.floor(ageIndex / 4);
-    const spriteSize = 128;
-    const sheetWidth = 512;
-    const sheetHeight = 512;
-    const scale = size / spriteSize;
-
-    return {
-        backgroundImage: `url(./Texture2D/AgeIcons.png)`,
-        backgroundPosition: `-${col * spriteSize * scale}px -${row * spriteSize * scale}px`,
-        backgroundSize: `${sheetWidth * scale}px ${sheetHeight * scale}px`,
-        width: `${size}px`,
-        height: `${size}px`,
-        display: 'inline-block',
-        verticalAlign: 'middle',
-        imageRendering: 'pixelated'
-    };
-}
 
 // Helper for Tech Tree Icons
 function getTechTreeIconStyle(spriteIndex: number, size: number = 32): React.CSSProperties {

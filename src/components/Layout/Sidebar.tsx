@@ -39,7 +39,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             ]
         },
         {
-            title: 'Encyclopedia',
+            title: 'Wiki',
             items: [
                 { name: 'Items', path: '/items', icon: Shirt }, // Shirt as placeholder for Items/Chest
                 { name: 'Pets', path: '/pets', icon: Cat },

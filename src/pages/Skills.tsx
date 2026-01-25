@@ -5,17 +5,19 @@ import { Card } from '../components/UI/Card';
 import { Input } from '../components/UI/Input';
 import { cn, getRarityBgStyle } from '../lib/utils';
 import { Zap, Search, Star, Clock, Crosshair, Sword, Heart } from 'lucide-react';
+import { formatNumber } from '../utils/format';
 
 export default function Skills() {
     const { profile } = useProfile();
     const { data: skillLibrary, loading: l1 } = useGameData<any>('SkillLibrary.json');
+    const { data: skillUpgrades, loading: l1b } = useGameData<any>('SkillUpgradeLibrary.json');
     const { data: spriteMapping, loading: l2 } = useGameData<any>('ManualSpriteMapping.json');
 
     const [searchTerm, setSearchTerm] = useState('');
     const [filterRarity, setFilterRarity] = useState<string | null>(null);
     const [globalLevel, setGlobalLevel] = useState(50);
 
-    const loading = l1 || l2;
+    const loading = l1 || l1b || l2;
     const skillsConfig = spriteMapping?.skills;
 
     // Build sprite lookup
@@ -96,7 +98,7 @@ export default function Skills() {
                 <div>
                     <h1 className="text-4xl font-bold bg-gradient-to-r from-accent-primary to-accent-secondary bg-clip-text text-transparent inline-flex items-center gap-3">
                         <Zap className="w-8 h-8 text-accent-primary" />
-                        Skill Encyclopedia
+                        Skill Wiki
                     </h1>
                     <p className="text-text-secondary">
                         Complete skill database with stats.
@@ -131,7 +133,7 @@ export default function Skills() {
                     <input
                         type="range"
                         min={1}
-                        max={100}
+                        max={skillUpgrades ? Object.keys(skillUpgrades).length + 1 : 300}
                         value={globalLevel}
                         onChange={(e) => setGlobalLevel(parseInt(e.target.value))}
                         className="flex-1 accent-accent-primary"
@@ -149,7 +151,7 @@ export default function Skills() {
                         const spriteStyle = getSpriteStyle(skill.spriteIndex);
 
                         // Stats at global level
-                        const levelIdx = Math.min(Math.max(0, globalLevel - 1), skill.damagePerLevel.length - 1);
+                        const levelIdx = Math.min(Math.max(1, globalLevel) - 1, skill.damagePerLevel.length - 1);
                         const dmgAtLevel = skill.damagePerLevel[levelIdx] || 0;
                         const hpAtLevel = skill.healthPerLevel[levelIdx] || 0;
 
@@ -212,21 +214,27 @@ export default function Skills() {
                                 <div className="grid grid-cols-2 gap-2 mt-auto">
                                     {dmgAtLevel > 0 && (
                                         <div className="bg-bg-input/50 p-2 rounded flex flex-col items-center">
-                                            <div className="flex items-center gap-1 text-xs text-text-muted mb-0.5">
-                                                <Sword className="w-3 h-3 text-red-400" /> Dmg
+                                            <div className="flex items-center gap-1 text-[10px] text-text-muted mb-0.5 uppercase font-bold">
+                                                <Sword className="w-3 h-3 text-red-400" /> Base Dmg
                                             </div>
                                             <div className="font-mono font-bold text-red-200 text-sm">
-                                                {dmgAtLevel.toFixed(0)}
+                                                {formatNumber(dmgAtLevel)}
+                                            </div>
+                                            <div className="text-[9px] text-text-muted mt-0.5">
+                                                {Math.round(dmgAtLevel).toLocaleString()}
                                             </div>
                                         </div>
                                     )}
                                     {hpAtLevel > 0 && (
                                         <div className="bg-bg-input/50 p-2 rounded flex flex-col items-center">
-                                            <div className="flex items-center gap-1 text-xs text-text-muted mb-0.5">
-                                                <Heart className="w-3 h-3 text-green-400" /> HP
+                                            <div className="flex items-center gap-1 text-[10px] text-text-muted mb-0.5 uppercase font-bold">
+                                                <Heart className="w-3 h-3 text-green-400" /> Base HP
                                             </div>
                                             <div className="font-mono font-bold text-green-200 text-sm">
-                                                {hpAtLevel.toFixed(0)}
+                                                {formatNumber(hpAtLevel)}
+                                            </div>
+                                            <div className="text-[9px] text-text-muted mt-0.5">
+                                                {Math.round(hpAtLevel).toLocaleString()}
                                             </div>
                                         </div>
                                     )}

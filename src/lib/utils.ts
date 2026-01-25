@@ -73,3 +73,70 @@ export function getAgeBorderStyle(ageIndex: number): React.CSSProperties {
         borderColor: `rgb(${color})`,
     };
 }
+
+/**
+ * Returns inline style object for Age Icons (AgeIcons.png sprite sheet)
+ * Uses 4x4 grid (512x512 total, 128x128 per icon)
+ */
+export function getAgeIconStyle(ageIndex: number, size: number = 32): React.CSSProperties {
+    const col = ageIndex % 4;
+    const row = Math.floor(ageIndex / 4);
+    const spriteSize = 128;
+    const sheetWidth = 512;
+    const sheetHeight = 512;
+    const scale = size / spriteSize;
+
+    return {
+        backgroundImage: `url(./Texture2D/AgeIcons.png)`,
+        backgroundPosition: `-${col * spriteSize * scale}px -${row * spriteSize * scale}px`,
+        backgroundSize: `${sheetWidth * scale}px ${sheetHeight * scale}px`,
+        width: `${size}px`,
+        height: `${size}px`,
+        display: 'inline-block',
+        verticalAlign: 'middle',
+        imageRendering: 'pixelated'
+    };
+}
+
+/**
+ * InventoryTextures.png mapping (4x4 sprite sheet, 128x128 per icon)
+ */
+export const INVENTORY_ICON_INDICES: Record<string, number> = {
+    'Helmet': 0,
+    'Armour': 1,
+    'Body': 1, // Alias
+    'Gloves': 2,
+    'Necklace': 3,
+    'Ring': 4,
+    'Weapon': 5,
+    'Shoes': 6,
+    'Shoe': 6, // Alias
+    'Belt': 7,
+    'Mount': 8,
+};
+
+/**
+ * Returns inline style object for Inventory Icons (InventoryTextures.png sprite sheet)
+ */
+export function getInventoryIconStyle(slotKey: string, size: number = 32): React.CSSProperties | null {
+    const iconIndex = INVENTORY_ICON_INDICES[slotKey];
+    if (iconIndex === undefined) return null;
+
+    const col = iconIndex % 4;
+    const row = Math.floor(iconIndex / 4);
+    const spriteSize = 128;
+    const sheetWidth = 512;
+    const sheetHeight = 512;
+    const scale = size / spriteSize;
+
+    return {
+        backgroundImage: `url(./Texture2D/InventoryTextures.png)`,
+        backgroundPosition: `-${col * spriteSize * scale}px -${row * spriteSize * scale}px`,
+        backgroundSize: `${sheetWidth * scale}px ${sheetHeight * scale}px`,
+        width: `${size}px`,
+        height: `${size}px`,
+        display: 'inline-block',
+        verticalAlign: 'middle',
+        imageRendering: 'pixelated'
+    };
+}

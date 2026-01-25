@@ -8,7 +8,7 @@ import { useGlobalStats } from '../../hooks/useGlobalStats';
 import { ItemSlot } from '../../types/Profile';
 import { Input } from '../UI/Input';
 import { Button } from '../UI/Button';
-import { cn, getAgeBgStyle } from '../../lib/utils';
+import { cn, getAgeBgStyle, getAgeIconStyle } from '../../lib/utils';
 import { AGES } from '../../utils/constants';
 import { getItemImage, getItemName } from '../../utils/itemAssets';
 import { getStatName } from '../../utils/statNames';
@@ -75,24 +75,6 @@ const ITEM_TYPE_MAP: Record<string, number> = {
     'Belt': 7
 };
 
-// AgeIcons.png is a 4x4 sprite sheet (512x512, each icon 128x128)
-// Ages 0-9 are in reading order (left to right, top to bottom)
-function getAgeIconStyle(ageIndex: number, size: number = 32): React.CSSProperties {
-    const col = ageIndex % 4;
-    const row = Math.floor(ageIndex / 4);
-    const spriteSize = 128;
-    const sheetWidth = 512;
-    const sheetHeight = 512;
-    const scale = size / spriteSize;
-
-    return {
-        backgroundImage: `url(./Texture2D/AgeIcons.png)`,
-        backgroundPosition: `-${col * spriteSize * scale}px -${row * spriteSize * scale}px`,
-        backgroundSize: `${sheetWidth * scale}px ${sheetHeight * scale}px`,
-        width: `${size}px`,
-        height: `${size}px`,
-    };
-}
 
 type MobileTab = 'age' | 'items' | 'config';
 

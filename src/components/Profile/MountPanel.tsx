@@ -4,7 +4,7 @@ import { Bike as MountIcon, Plus, Minus, X, Recycle, Bookmark } from 'lucide-rea
 import { Button } from '../UI/Button';
 import { MountSlot } from '../../types/Profile';
 import { useState, useMemo } from 'react';
-import { cn, getRarityBgStyle } from '../../lib/utils';
+import { cn, getRarityBgStyle, getInventoryIconStyle } from '../../lib/utils';
 import { useGameData } from '../../hooks/useGameData';
 import { MountSelectorModal } from './MountSelectorModal';
 import { SpriteSheetIcon } from '../UI/SpriteSheetIcon';
@@ -299,13 +299,7 @@ export function MountPanel() {
                 >
                     {/* Mount icon from InventoryTextures.png (index 8 = row 3, col 1) */}
                     <div
-                        style={{
-                            backgroundImage: `url(./Texture2D/InventoryTextures.png)`,
-                            backgroundPosition: `-0px -${128 * 2 * (48 / 128)}px`,
-                            backgroundSize: `${512 * (48 / 128)}px ${512 * (48 / 128)}px`,
-                            width: '48px',
-                            height: '48px',
-                        }}
+                        style={getInventoryIconStyle('Mount', 48) || {}}
                         className="opacity-30"
                     />
                     <p className="text-text-muted text-sm">No mount equipped</p>

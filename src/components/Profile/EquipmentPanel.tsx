@@ -6,7 +6,7 @@ import { useState, useMemo } from 'react';
 import { ItemSelectorModal } from './ItemSelectorModal';
 import { MountSelectorModal } from './MountSelectorModal';
 import { InputModal } from '../UI/InputModal';
-import { cn, getAgeBgStyle, getAgeBorderStyle } from '../../lib/utils';
+import { cn, getAgeBgStyle, getAgeBorderStyle, getInventoryIconStyle } from '../../lib/utils';
 import { getItemImage } from '../../utils/itemAssets';
 import { useGameData } from '../../hooks/useGameData';
 import { AGES } from '../../utils/constants';
@@ -19,16 +19,6 @@ import { SpriteSheetIcon } from '../UI/SpriteSheetIcon';
 // Row 1: Helmet(0), Armor(1), Gloves(2), Necklace(3)
 // Row 2: Ring(4), Weapon(5), Shoes(6), Belt(7)
 // Row 3: Mount(8), ...
-const INVENTORY_ICON_INDICES: Record<string, number> = {
-    'Helmet': 0,
-    'Body': 1,
-    'Gloves': 2,
-    'Necklace': 3,
-    'Ring': 4,
-    'Weapon': 5,
-    'Shoe': 6,
-    'Belt': 7,
-};
 
 const SLOTS: { key: keyof UserProfile['items']; label: string }[] = [
     // Row 1
@@ -55,26 +45,6 @@ const SLOT_TO_FILE_MAP: Record<string, string> = {
     'Shoe': 'Foot',
 };
 
-// Get sprite style for inventory icon from InventoryTextures.png (4x4 grid, 128px each)
-function getInventoryIconStyle(slotKey: string, size: number = 48): React.CSSProperties | null {
-    const iconIndex = INVENTORY_ICON_INDICES[slotKey];
-    if (iconIndex === undefined) return null;
-
-    const col = iconIndex % 4;
-    const row = Math.floor(iconIndex / 4);
-    const spriteSize = 128;
-    const sheetWidth = 512;
-    const sheetHeight = 512;
-    const scale = size / spriteSize;
-
-    return {
-        backgroundImage: `url(./Texture2D/InventoryTextures.png)`,
-        backgroundPosition: `-${col * spriteSize * scale}px -${row * spriteSize * scale}px`,
-        backgroundSize: `${sheetWidth * scale}px ${sheetHeight * scale}px`,
-        width: `${size}px`,
-        height: `${size}px`,
-    };
-}
 
 // Slot to tech bonus mapping
 const SLOT_TO_TECH_BONUS: Record<string, string> = {
@@ -661,22 +631,6 @@ function MountSlotWidget() {
         };
     };
 
-    // Mount inventory icon (index 8 in InventoryTextures.png)
-    const getMountInventoryStyle = () => {
-        const iconIndex = 8;
-        const col = iconIndex % 4;
-        const row = Math.floor(iconIndex / 4);
-        const spriteSize = 128;
-        const size = 48;
-        const scale = size / spriteSize;
-        return {
-            backgroundImage: `url(./Texture2D/InventoryTextures.png)`,
-            backgroundPosition: `-${col * spriteSize * scale}px -${row * spriteSize * scale}px`,
-            backgroundSize: `${512 * scale}px ${512 * scale}px`,
-            width: `${size}px`,
-            height: `${size}px`,
-        };
-    };
 
     const spriteInfo = mount ? getSpriteInfo(mount.id, mount.rarity) : null;
     const mountStats = mount ? getMountStats() : null;
@@ -752,7 +706,7 @@ function MountSlotWidget() {
                                         className="w-14 h-14"
                                     />
                                 ) : (
-                                    <div style={getMountInventoryStyle()} className="opacity-70 scale-110" />
+                                    <div style={getInventoryIconStyle('Mount', 48) || {}} className="opacity-70 scale-110" />
                                 )}
                             </div>
                         </div>
@@ -864,7 +818,7 @@ function MountSlotWidget() {
                     </div>
                 ) : (
                     <div className="flex items-center justify-center w-full gap-3">
-                        <div style={getMountInventoryStyle()} className="opacity-30 group-hover:opacity-50 transition-opacity" />
+                        <div style={getInventoryIconStyle('Mount', 48) || {}} className="opacity-30 group-hover:opacity-50 transition-opacity" />
                         <span className="text-xs text-text-muted">Click to select Mount</span>
                     </div>
                 )}

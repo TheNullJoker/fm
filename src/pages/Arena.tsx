@@ -23,7 +23,12 @@ const LEAGUE_BG_GRADIENTS = [
     'from-[#ff6b6b]/10 to-transparent',
 ];
 
-
+/*
+- **Arena Wiki Icon Refactor**:
+    - **Official Shield Sprites**: Replaced broken individual image files with the high-quality shield sprites (`BronzeShield` to `MasterShield`) from the shared `Icons.png` sheet.
+    - **Reward Icon Standardization**: All ranking rewards (Hammers, Gold, Summon Tickets, etc.) now use the corresponding official game icons via the `GameIcon` component. Per your request, `ClockWinders` now correctly display the `MountKey` icon.
+    - **Visual Polish**: Improved the league card layout with better typography and shadow effects to make the icons pop.
+*/
 
 interface RankReward {
     FromRank: number;
@@ -75,21 +80,22 @@ export default function Arena() {
                             {/* Background Gradient */}
                             <div className={cn("absolute inset-0 bg-gradient-to-br opacity-50 pointer-events-none", bgClass)} />
 
-                            <div className="relative z-10">
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className={cn("w-16 h-16 flex items-center justify-center")}>
-                                        <img
-                                            src={`./icons/single/LeagueIcons_${5 - idx}.png`}
-                                            alt={name}
-                                            className="w-full h-full object-contain drop-shadow-glow"
-                                            onError={(e) => {
-                                                e.currentTarget.style.display = 'none';
-                                                e.currentTarget.parentElement?.classList.add('bg-bg-primary', 'rounded-full', 'border-2', colorClass);
-                                                e.currentTarget.parentElement!.innerText = name[0];
-                                            }}
+                            <div className="relative z-10 p-6 flex flex-col h-full">
+                                <div className="flex items-center gap-4 mb-6">
+                                    <div className={cn(
+                                        "w-20 h-20 flex items-center justify-center relative bg-bg-input/20 rounded-full border-2 shadow-xl group",
+                                        colorClass.split(' ')[0]
+                                    )}>
+                                        <GameIcon
+                                            name={getLeagueIconName(idx)}
+                                            size={64}
+                                            className="drop-shadow-glow transition-transform duration-300 group-hover:scale-110"
                                         />
                                     </div>
-                                    <h2 className={cn("text-2xl font-bold", colorClass.split(' ')[1])}>{name}</h2>
+                                    <div>
+                                        <h2 className={cn("text-3xl font-black uppercase italic tracking-tighter", colorClass.split(' ')[1])}>{name}</h2>
+                                        <div className="text-[10px] font-bold text-text-muted opacity-50 uppercase tracking-widest">League {idx + 1}</div>
+                                    </div>
                                 </div>
 
                                 {/* Stats */}
@@ -152,12 +158,24 @@ export default function Arena() {
 // Helper to map reward strings to icon names
 function mapRewardType(type: string): string {
     const map: Record<string, string> = {
-        'Hammers': 'hammer',
-        'Coins': 'coin',
-        'SkillSummonTickets': 'ticket',
-        'TechPotions': 'potion',
-        'Pet': 'egg', // or key
-        'ClockWinders': 'timer'
+        'Hammers': 'Hammer',
+        'Coins': 'Coin',
+        'SkillSummonTickets': 'SkillTicket',
+        'TechPotions': 'Potion',
+        'Pet': 'PetKey',
+        'ClockWinders': 'MountKey'
     };
-    return map[type] || 'star';
+    return map[type] || 'Star';
+}
+
+function getLeagueIconName(idx: number): string {
+    const shields = [
+        'BronzeShield',
+        'SilverShield',
+        'GoldShield',
+        'PlatinumShield',
+        'PlatinumShield', // Diamond fallback
+        'MasterShield'
+    ];
+    return shields[idx] || 'BronzeShield';
 }
