@@ -2,171 +2,202 @@ import { useState, useMemo, useEffect } from 'react';
 import { useGameData } from './useGameData';
 import { useProfile } from '../context/ProfileContext';
 import { useTreeMode } from '../context/TreeModeContext';
-import { mountSummonRates, mountWarPoints, WINDERS_PER_SUMMON } from '../constants/mountData';
-
-export type CalculationMode = 'calculate' | 'target';
 
 export function useMountsCalculator() {
-    // Contexts
-    const { profile } = useProfile();
-    const { isTreeMode, activeTree, simulatedTree } = useTreeMode();
+    const { profile, updateProfile } = useProfile();
+    const { treeMode } = useTreeMode();
 
-    // Game Data
+    // 1. Data Loading
+    const { data: mountSummonConfig } = useGameData<any>('MountSummonConfig.json');
+    const { data: mountSummonUpgradeLibrary } = useGameData<any>('MountSummonUpgradeLibrary.json');
+    const { data: mountSummonDropChancesLibrary } = useGameData<any>('MountSummonDropChancesLibrary.json');
+    const { data: guildWarDayConfigLibrary } = useGameData<any>('GuildWarDayConfigLibrary.json');
     const { data: techTreeLibrary } = useGameData<any>('TechTreeLibrary.json');
-    const { data: techTreePositionLibrary } = useGameData<any>('TechTreePositionLibrary.json');
+    const { data: techTreeMapping } = useGameData<any>('TechTreeMapping.json');
 
-    const [level, setLevel] = useState(1);
-    const [mode, setMode] = useState<CalculationMode>('calculate');
+    // 2. State (Initialized from Profile)
+    const [level, setLevel] = useState(profile.misc.mountCalculatorLevel || 1);
+    const [progress, setProgress] = useState(profile.misc.mountCalculatorProgress || 0);
+    const [windersCount, setWindersCount] = useState(profile.misc.mountCalculatorWinders || 0);
 
-    // Inputs
-    const [windersCount, setWindersCount] = useState(0);
-    const [targetPoints, setTargetPoints] = useState(0);
-
-    // Persist level
+    // Sync state to profile
     useEffect(() => {
-        const saved = localStorage.getItem('mountLevel');
-        if (saved) setLevel(parseInt(saved));
-    }, []);
+        updateProfile({
+            misc: {
+                ...profile.misc,
+                mountCalculatorLevel: level,
+                mountCalculatorProgress: progress,
+                mountCalculatorWinders: windersCount
+            }
+        });
+    }, [level, progress, windersCount]);
 
-    useEffect(() => {
-        localStorage.setItem('mountLevel', level.toString());
-    }, [level]);
-
-    // Tech Bonus Calculation
+    // 3. Tech Bonuses (Re-using logic from Skill Calculator for consistency)
     const techBonuses = useMemo(() => {
-        if (!techTreeLibrary || !techTreePositionLibrary || !profile) {
+        if (!techTreeLibrary || !techTreeMapping) {
             return { costReduction: 0, extraChance: 0 };
         }
-
-        const treeSource = isTreeMode ? simulatedTree : profile.techTree;
-        const trees: ('Forge' | 'Power' | 'SkillsPetTech')[] = ['Forge', 'Power', 'SkillsPetTech'];
 
         let costReduction = 0;
         let extraChance = 0;
 
-        // Tree Walker Helper
-        const checkNodeValidity = (treeName: string, levels: Record<string, number>, nodeId: number, visited = new Set<number>()): boolean => {
-            if (visited.has(nodeId)) return false;
-            const level = levels[nodeId];
-            if (!level || level <= 0) return false;
+        Object.entries(profile.techTree).forEach(([treeName, treeNodes]) => {
+            const treeDef = techTreeMapping.trees?.[treeName];
+            if (!treeDef || !treeDef.nodes) return;
 
-            const treeData = techTreePositionLibrary[treeName];
-            const node = treeData?.Nodes?.find((n: any) => n.Id === nodeId);
-            if (!node) return false;
+            treeDef.nodes.forEach((node: any) => {
+                const nodeType = node.type;
+                const config = techTreeLibrary[nodeType];
+                if (!config) return;
 
-            visited.add(nodeId);
-            if (node.Requirements?.length > 0) {
-                for (const reqId of node.Requirements) {
-                    if (!checkNodeValidity(treeName, levels, reqId, visited)) return false;
+                const maxLevel = config.MaxLevel || 0;
+                let nodeLevel = 0;
+
+                if (treeMode === 'max') nodeLevel = maxLevel;
+                else if (treeMode === 'empty') nodeLevel = 0;
+                else nodeLevel = (treeNodes as any)[node.id] || 0;
+
+                if (nodeLevel > 0 && config.Stats?.[0]) {
+                    const stat = config.Stats[0];
+                    const val = stat.Value + ((nodeLevel - 1) * stat.ValueIncrease);
+
+                    if (nodeType === 'MountSummonCost') {
+                        costReduction += val;
+                    } else if (nodeType === 'ExtraMountChance') {
+                        extraChance += val;
+                    }
                 }
-            }
-            visited.delete(nodeId);
-            return true;
+            });
+        });
+
+        return {
+            costReduction: Math.min(0.9, costReduction),
+            extraChance: extraChance
+        };
+    }, [techTreeLibrary, techTreeMapping, treeMode, profile]);
+
+    // 4. Constants from config
+    const BASE_COST = mountSummonConfig?.SummonCost || 50;
+    const MOUNTS_PER_SUMMON = 1 + techBonuses.extraChance;
+    const finalCostPerSummon = Math.ceil(BASE_COST * (1 - techBonuses.costReduction));
+
+    // 5. Simulation Results
+    const results = useMemo(() => {
+        if (!mountSummonUpgradeLibrary || !mountSummonDropChancesLibrary || !guildWarDayConfigLibrary) {
+            return null;
+        }
+
+        const pointsBreakdown: Record<string, { summon: number; merge: number }> = {};
+        const day2 = guildWarDayConfigLibrary["2"]; // Day 2 is usually Mount day
+        if (day2) {
+            ['Common', 'Rare', 'Epic', 'Legendary', 'Ultimate', 'Mythic'].forEach(rarity => {
+                const summonTask = day2.Tasks.find((t: any) => t.Task === `Summon${rarity}Mount`);
+                const mergeTask = day2.Tasks.find((t: any) => t.Task === `Merge${rarity}Mount`);
+                pointsBreakdown[rarity] = {
+                    summon: summonTask?.Rewards?.[0]?.Amount || 0,
+                    merge: mergeTask?.Rewards?.[0]?.Amount || 0
+                };
+            });
+        }
+
+        const totalPaidSummons = Math.floor(windersCount / Math.max(1, finalCostPerSummon));
+
+        // Simulation state
+        let currentLevel = level;
+        let currentProgress = progress;
+
+        const breakdown: Record<string, { count: number; summonPoints: number; mergePoints: number }> = {
+            Common: { count: 0, summonPoints: 0, mergePoints: 0 },
+            Rare: { count: 0, summonPoints: 0, mergePoints: 0 },
+            Epic: { count: 0, summonPoints: 0, mergePoints: 0 },
+            Legendary: { count: 0, summonPoints: 0, mergePoints: 0 },
+            Ultimate: { count: 0, summonPoints: 0, mergePoints: 0 },
+            Mythic: { count: 0, summonPoints: 0, mergePoints: 0 }
         };
 
-        for (const tree of trees) {
-            const treeLevels = treeSource[tree] || {};
-            const treeData = techTreePositionLibrary[tree];
-            if (!treeData) continue;
+        let totalSummonPoints = 0;
+        let totalMergePoints = 0;
 
-            for (const [nodeIdStr, level] of Object.entries(treeLevels)) {
-                if (typeof level !== 'number' || level <= 0) continue;
-                const nodeId = parseInt(nodeIdStr);
+        // Perform simulation summons one by one to track level progression
+        for (let i = 0; i < totalPaidSummons; i++) {
+            const probabilities = mountSummonDropChancesLibrary[(currentLevel - 1).toString()];
+            if (probabilities) {
+                Object.entries(probabilities).forEach(([rarity, chance]) => {
+                    if (typeof chance !== 'number' || rarity === 'Level') return;
 
-                if (checkNodeValidity(tree, treeLevels, nodeId)) {
-                    const node = treeData.Nodes.find((n: any) => n.Id === nodeId);
-                    const nodeConf = techTreeLibrary[node?.Type];
+                    const expectedCount = chance * MOUNTS_PER_SUMMON;
+                    const sPts = expectedCount * (pointsBreakdown[rarity]?.summon || 0);
+                    const mPts = expectedCount * (pointsBreakdown[rarity]?.merge || 0);
 
-                    if (nodeConf?.Type === 'MountSummonCost') {
-                        const base = nodeConf.Stats[0].Value;
-                        const inc = nodeConf.Stats[0].ValueIncrease;
-                        // OneMinusMultiplier: 0.01 means 1% reduction
-                        costReduction += base + (Math.max(0, level - 1) * inc);
+                    if (breakdown[rarity]) {
+                        breakdown[rarity].count += expectedCount;
+                        breakdown[rarity].summonPoints += sPts;
+                        breakdown[rarity].mergePoints += mPts;
+                        totalSummonPoints += sPts;
+                        totalMergePoints += mPts;
                     }
-                    if (nodeConf?.Type === 'ExtraMountChance') {
-                        const base = nodeConf.Stats[0].Value;
-                        const inc = nodeConf.Stats[0].ValueIncrease;
-                        // Multiplier: 0.02 means +2% chance
-                        extraChance += base + (Math.max(0, level - 1) * inc);
-                    }
-                }
+                });
+            }
+
+            // Progress Level
+            currentProgress++;
+            const threshold = mountSummonUpgradeLibrary[currentLevel.toString()]?.Summons;
+            if (threshold && currentProgress >= threshold) {
+                currentLevel++;
+                currentProgress = 0;
             }
         }
 
         return {
-            costReduction: Math.min(0.9, costReduction), // Cap reduction?
-            extraChance
+            totalSummons: totalPaidSummons,
+            endLevel: currentLevel,
+            endProgress: currentProgress,
+            totalPoints: totalSummonPoints + totalMergePoints,
+            totalSummonPoints,
+            totalMergePoints,
+            breakdown: Object.entries(breakdown)
+                .map(([rarity, data]) => ({
+                    rarity,
+                    ...data,
+                    percentage: (probabilitiesForCurrentLevel(currentLevel)[rarity] || 0) * 100,
+                    pointsPerUnit: pointsBreakdown[rarity]
+                }))
+                .filter(b => b.count > 0 || b.percentage > 0),
+            finalCost: finalCostPerSummon,
+            baseCost: BASE_COST,
+            costReduction: techBonuses.costReduction
         };
-    }, [techTreeLibrary, techTreePositionLibrary, profile, isTreeMode, simulatedTree]);
 
-    // Derived Values
-    const effectiveCostPerSummon = useMemo(() => {
-        // Cost Reduction is "OneMinusMultiplier" in engine => Cost * (1 - Reduction)
-        return WINDERS_PER_SUMMON * (1 - techBonuses.costReduction);
-    }, [techBonuses]);
-
-    const effectiveSummonsPerWinder = useMemo(() => {
-        // Extra Chance is "Freebie" => If 10% chance, 100 winders = 100 summons + 10 free + 1 free... 
-        // Or simple: 1 / (1 - Chance) multiplier on yield? 
-        // Engine calls it "FreebieChance". Usually means "Chance to get result without cost" or "Double Drop".
-        // If it's "Free Summon Chance": Expected Summons = BaseSummons * (1 + Chance)? 
-        // Let's assume linear bonus: 100 paid summons + 20 free ones = 120 total.
-        // So Multiplier = 1 + Chance.
-        return 1 + techBonuses.extraChance;
-    }, [techBonuses]);
-
-    const expectedPointsPerSummon = useMemo(() => {
-        const rates = mountSummonRates[level];
-        if (!rates) return 0;
-        let expected = 0;
-        const tiers = ['common', 'rare', 'epic', 'legendary', 'ultimate', 'mythic'];
-        for (const tier of tiers) {
-            if (rates[tier]) expected += rates[tier] * mountWarPoints[tier];
+        function probabilitiesForCurrentLevel(lvl: number) {
+            return mountSummonDropChancesLibrary[(lvl - 1).toString()] || {};
         }
-        return expected;
-    }, [level]);
 
-    // Results
-    const calculationResults = useMemo(() => {
-        const paidSummons = windersCount / effectiveCostPerSummon;
-        const totalSummons = paidSummons * effectiveSummonsPerWinder; // Apply extra chance multiplier
-        const totalPoints = totalSummons * expectedPointsPerSummon;
+    }, [windersCount, level, progress, mountSummonUpgradeLibrary, mountSummonDropChancesLibrary, guildWarDayConfigLibrary, techBonuses, finalCostPerSummon, BASE_COST, MOUNTS_PER_SUMMON]);
 
-        return {
-            paidSummons: Math.floor(paidSummons),
-            totalSummons: Math.floor(totalSummons),
-            totalPoints
-        };
-    }, [windersCount, effectiveCostPerSummon, effectiveSummonsPerWinder, expectedPointsPerSummon]);
+    // Max Level Helper
+    const maxPossibleLevel = useMemo(() => {
+        if (!mountSummonDropChancesLibrary) return 50;
+        const keys = Object.keys(mountSummonDropChancesLibrary).map(Number);
+        return Math.max(...keys) + 1; // 0-49 indices => 1-50 levels
+    }, [mountSummonDropChancesLibrary]);
 
-    const targetResults = useMemo(() => {
-        if (expectedPointsPerSummon <= 0) return { summonsNeeded: 0, windersNeeded: 0 };
-
-        // Points = TotalSummons * PointsPerSummon
-        // TotalSummonsNeeded = Target / PointsPerSummon
-        const totalSummonsNeeded = targetPoints / expectedPointsPerSummon;
-
-        // TotalSummons = PaidSummons * (1 + ExtraChance)
-        // PaidSummons = TotalSummons / (1 + ExtraChance)
-        const paidSummonsNeeded = totalSummonsNeeded / effectiveSummonsPerWinder;
-
-        // Winders = PaidSummons * EffectiveCost
-        const windersNeeded = paidSummonsNeeded * effectiveCostPerSummon;
-
-        return {
-            summonsNeeded: Math.ceil(totalSummonsNeeded),
-            windersNeeded: Math.ceil(windersNeeded)
-        };
-    }, [targetPoints, expectedPointsPerSummon, effectiveSummonsPerWinder, effectiveCostPerSummon]);
+    // Action to apply results to profile
+    const applyResultsToProfile = () => {
+        if (!results) return;
+        setLevel(results.endLevel);
+        setProgress(results.endProgress);
+        // We don't deduct winders automatically, user might want to check again.
+        // But we update the level/progress which is what the user asked.
+    };
 
     return {
         level, setLevel,
-        mode, setMode,
+        progress, setProgress,
         windersCount, setWindersCount,
-        targetPoints, setTargetPoints,
         techBonuses,
-        calculationResults,
-        targetResults,
-        expectedPointsPerSummon
+        results,
+        maxPossibleLevel,
+        mountSummonUpgradeLibrary,
+        applyResultsToProfile
     };
 }

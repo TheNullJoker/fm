@@ -108,6 +108,9 @@ export interface UserProfile {
         };
         skillCalculatorLevel?: number;
         skillCalculatorTickets?: number;
+        mountCalculatorLevel?: number;
+        mountCalculatorProgress?: number;
+        mountCalculatorWinders?: number;
     };
 }
 
@@ -165,6 +168,9 @@ export const INITIAL_PROFILE: UserProfile = {
             mode: 'hammers'
         },
         skillCalculatorLevel: 1,
-        skillCalculatorTickets: 0
+        skillCalculatorTickets: 0,
+        mountCalculatorLevel: 1,
+        mountCalculatorProgress: 0,
+        mountCalculatorWinders: 0
     }
 };
