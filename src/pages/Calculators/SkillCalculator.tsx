@@ -1,7 +1,7 @@
 import { useSkillsCalculator } from '../../hooks/useSkillsCalculator';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/UI/Card';
 import { SpriteIcon } from '../../components/UI/SpriteIcon';
-import { RefreshCw, Ticket, Info, Trophy, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
+import { RefreshCw, Info, Trophy, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function SkillCalculator() {
     const {
@@ -33,7 +33,7 @@ export default function SkillCalculator() {
             {/* Header */}
             <div className="text-center space-y-2 mb-6">
                 <h1 className="text-4xl font-bold bg-gradient-to-r from-accent-primary to-accent-secondary bg-clip-text text-transparent inline-flex items-center gap-3">
-                    <Ticket className="w-8 h-8 text-accent-primary" />
+                    <SpriteIcon name="SkillTicket" size={40} />
                     Skill Calculator
                 </h1>
                 <p className="text-text-secondary">Calculate expected skills and War Points from your tickets.</p>
@@ -114,7 +114,7 @@ export default function SkillCalculator() {
                             </label>
                             <div className="relative group">
                                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary group-focus-within:text-accent-primary transition-colors pointer-events-none">
-                                    <Ticket className="w-5 h-5" />
+                                    <SpriteIcon name="SkillTicket" size={20} className="opacity-50" />
                                 </div>
                                 <input
                                     type="number"
@@ -235,8 +235,8 @@ export default function SkillCalculator() {
                     </CardContent>
 
                     {/* Background Decoration */}
-                    <div className="absolute -right-10 -bottom-10 opacity-5 pointer-events-none">
-                        <Ticket className="w-64 h-64 text-accent-primary" />
+                    <div className="absolute -right-10 -bottom-10 opacity-5 pointer-events-none overflow-hidden">
+                        <SpriteIcon name="SkillTicket" size={256} className="grayscale" />
                     </div>
                 </Card>
             </div>

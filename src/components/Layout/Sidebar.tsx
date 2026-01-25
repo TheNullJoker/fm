@@ -23,17 +23,19 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             items: [
                 { name: 'My Profile', path: '/', isProfile: true },
                 { name: 'Progress Prediction', path: '/progress-prediction', icon: TrendingUp },
+                { name: 'PVP Simulator', path: '/pvp-arena', icon: Swords },
             ]
         },
         {
             title: 'Calculators',
             items: [
-                { name: 'Eggs', path: '/eggs', icon: Egg },
+                { name: 'Offline', path: '/offline', icon: Coins },
                 { name: 'Dungeons', path: '/dungeons', icon: Key },
-                { name: 'PVP Arena', path: '/pvp-arena', icon: Swords },
                 { name: 'Forge', path: '/forge-calculator', icon: Hammer },
-                { name: 'Mounts', path: '/calculators/mounts', icon: Star },
+                { name: 'Tech Tree', path: '/calculators/tree', icon: Cpu },
+                { name: 'Eggs', path: '/eggs', icon: Egg },
                 { name: 'Skills', path: '/calculators/skills', icon: Star },
+                { name: 'Mounts', path: '/calculators/mounts', icon: Star },
             ]
         },
         {
@@ -52,7 +54,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             title: 'Info',
             items: [
                 { name: 'Unlocks', path: '/unlocks', icon: Lock },
-                { name: 'Offline', path: '/offline', icon: Coins },
                 { name: 'Colors', path: '/colors', icon: Palette },
                 { name: 'Configs', path: '/configs', icon: FileJson },
                 { name: 'FAQ', path: '/faq', icon: HelpCircle },

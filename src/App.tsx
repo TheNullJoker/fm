@@ -27,6 +27,7 @@ import PvpArena from './pages/PvpArena';
 import ForgeCalculator from './pages/Calculators/ForgeCalculator';
 import MountCalculator from './pages/Calculators/MountCalculator';
 import SkillCalculator from './pages/Calculators/SkillCalculator';
+import TreeCalculator from './pages/Calculators/TreeCalculator';
 import Verify from './pages/Verify';
 
 function App() {
@@ -62,6 +63,7 @@ function App() {
                                 <Route path="calculators/forge" element={<ForgeCalculator />} />
                                 <Route path="calculators/mounts" element={<MountCalculator />} />
                                 <Route path="calculators/skills" element={<SkillCalculator />} />
+                                <Route path="calculators/tree" element={<TreeCalculator />} />
                                 <Route path="*" element={<Home />} />
                             </Route>
                         </Routes>

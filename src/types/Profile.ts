@@ -111,6 +111,7 @@ export interface UserProfile {
         mountCalculatorLevel?: number;
         mountCalculatorProgress?: number;
         mountCalculatorWinders?: number;
+        techPotions?: number;
     };
 }
 
@@ -171,6 +172,7 @@ export const INITIAL_PROFILE: UserProfile = {
         skillCalculatorTickets: 0,
         mountCalculatorLevel: 1,
         mountCalculatorProgress: 0,
-        mountCalculatorWinders: 0
+        mountCalculatorWinders: 0,
+        techPotions: 0
     }
 };

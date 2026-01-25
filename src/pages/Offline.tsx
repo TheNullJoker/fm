@@ -1,28 +1,114 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useProfile } from '../context/ProfileContext';
+import { useGameData } from '../hooks/useGameData';
+import { useTreeMode } from '../context/TreeModeContext';
 import { Card } from '../components/UI/Card';
-import { Input } from '../components/UI/Input';
-import { Clock, PlayCircle } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 import { GameIcon } from '../components/UI/GameIcon';
+import { SpriteIcon } from '../components/UI/SpriteIcon';
 import { formatNumber } from '../utils/format';
 
 export default function Offline() {
-    const [hours, setHours] = useState(8);
-    const [stage, setStage] = useState(50);
-    const [techBonus, setTechBonus] = useState(0);
+    const { profile } = useProfile();
+    const { treeMode } = useTreeMode();
+    const { data: techLibrary } = useGameData<any>('TechTreeLibrary.json');
+    const { data: techMapping } = useGameData<any>('TechTreeMapping.json');
+    const { data: idleConfig } = useGameData<any>('IdleConfig.json');
 
-    // Logic from legacy script
-    const baseCoinsPerHour = 1000 + (stage * 200);
-    const baseHammersPerHour = 10 + (stage * 2);
-    const bonusMultiplier = 1 + (techBonus / 100);
+    const [totalOfflineHours, setTotalOfflineHours] = useState(2);
 
-    const totalCoins = Math.floor(baseCoinsPerHour * hours * bonusMultiplier);
-    const totalHammers = Math.floor(baseHammersPerHour * hours * bonusMultiplier);
-    const withAd = Math.floor(totalCoins * 2);
+    // Calculate bonuses based on current Tree Mode
+    const bonuses = useMemo(() => {
+        let coinMultiplier = 1;
+        let hammerMultiplier = 1;
+        let maxTimeMultiplier = 1;
+
+        if (!profile?.techTree || !techLibrary || !techMapping?.trees) {
+            return { coinMultiplier, hammerMultiplier, maxTimeMultiplier };
+        }
+
+        const getEffectiveTree = () => {
+            if (treeMode === 'my') return profile.techTree;
+            if (treeMode === 'empty') return { Forge: {}, Power: {}, SkillsPetTech: {} } as any;
+
+            // for 'max' mode, build tree from mapping and max levels from library
+            const maxTree: any = { Forge: {}, Power: {}, SkillsPetTech: {} };
+            Object.entries(techMapping.trees).forEach(([treeName, treeDef]: [string, any]) => {
+                if (treeDef.nodes) {
+                    treeDef.nodes.forEach((node: any) => {
+                        const nodeConfig = techLibrary[node.type];
+                        maxTree[treeName][node.id] = nodeConfig?.MaxLevel || 5;
+                    });
+                }
+            });
+            return maxTree;
+        };
+
+        const activeTree = getEffectiveTree();
+
+        Object.entries(activeTree).forEach(([treeName, nodes]) => {
+            const treeMapping = techMapping.trees[treeName];
+            if (!treeMapping?.nodes) return;
+
+            Object.entries(nodes as Record<string, number>).forEach(([nodeId, level]) => {
+                if (level <= 0) return;
+
+                const nodeDef = treeMapping.nodes.find((n: any) => n.id === parseInt(nodeId));
+                if (!nodeDef) return;
+
+                const nodeConfig = techLibrary[nodeDef.type];
+                if (!nodeConfig?.Stats?.[0]) return;
+
+                const stat = nodeConfig.Stats[0];
+                const bonusValue = stat.Value + ((level - 1) * stat.ValueIncrease);
+
+                if (nodeDef.type === 'CoinOfflineReward') {
+                    coinMultiplier += bonusValue;
+                } else if (nodeDef.type === 'HammerOfflineReward') {
+                    hammerMultiplier += bonusValue;
+                } else if (nodeDef.type === 'MaxOfflineReward') {
+                    maxTimeMultiplier += bonusValue;
+                }
+            });
+        });
+
+        return { coinMultiplier, hammerMultiplier, maxTimeMultiplier };
+    }, [profile, techLibrary, techMapping, treeMode]);
+
+    const baseMaxTimeHours = idleConfig?.MaxIdleSeconds ? idleConfig.MaxIdleSeconds / 3600 : 2;
+    const maxOfflineHours = baseMaxTimeHours * bonuses.maxTimeMultiplier;
+
+    // Formatting Helpers
+    const formatHmMessages = (totalHours: number) => {
+        const totalMinutes = Math.round(totalHours * 60);
+        const h = Math.floor(totalMinutes / 60);
+        const m = totalMinutes % 60;
+        return `${h}h${m > 0 ? ` ${m}m` : ''}`;
+    };
+
+    // Constrain total offline hours to max
+    const effectiveHours = Math.min(totalOfflineHours, maxOfflineHours);
+
+    // Calculate rates
+    const rates = useMemo(() => {
+        if (!idleConfig) return { coinsPerSec: 0, hammersPerMin: 0 };
+
+        const baseCoinsPerSec = idleConfig.CoinsPerSecond || 1;
+        const baseHammersPerMin = idleConfig.HammersPerMinute || 1;
+
+        return {
+            coinsPerSec: baseCoinsPerSec * bonuses.coinMultiplier,
+            hammersPerMin: baseHammersPerMin * bonuses.hammerMultiplier
+        };
+    }, [idleConfig, bonuses]);
+
+    const totalCoins = Math.floor(rates.coinsPerSec * effectiveHours * 3600);
+    const totalHammers = Math.floor((rates.hammersPerMin / 60) * effectiveHours * 3600);
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
+        <div className="max-w-4xl mx-auto space-y-8 animate-fade-in relative">
             <div className="flex items-center gap-4 border-b border-border pb-6">
-                <Clock className="w-10 h-10 text-accent-primary" />
+                <SpriteIcon name="Timer" size={40} className="drop-shadow-glow" />
                 <div>
                     <h1 className="text-3xl font-bold bg-gradient-to-r from-accent-primary to-accent-secondary bg-clip-text text-transparent">
                         Offline Rewards
@@ -35,47 +121,70 @@ export default function Offline() {
                 {/* Inputs */}
                 <div className="space-y-6">
                     <Card>
-                        <h2 className="font-semibold mb-4 text-accent-primary">Parameters</h2>
-                        <div className="space-y-4">
-                            <Input
-                                label="Hours Offline"
-                                type="number"
-                                value={hours}
-                                onChange={(e) => setHours(Math.min(24, Math.max(1, Number(e.target.value))))}
-                                min={1}
-                                max={24}
-                            />
-                            <Input
-                                label="Current Stage"
-                                type="number"
-                                value={stage}
-                                onChange={(e) => setStage(Math.max(1, Number(e.target.value)))}
-                                min={1}
-                            />
-                            <Input
-                                label="Tech Tree Bonus (%)"
-                                type="number"
-                                value={techBonus}
-                                onChange={(e) => setTechBonus(Math.max(0, Number(e.target.value)))}
-                                min={0}
-                            />
+                        <h2 className="font-semibold mb-6 text-accent-primary flex items-center gap-2">
+                            <SpriteIcon name="Timer" size={20} />
+                            Time Offline
+                        </h2>
+                        <div className="grid grid-cols-2 gap-4">
+                            {/* Hours */}
+                            <div className="relative group">
+                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary group-focus-within:text-accent-primary transition-colors pointer-events-none">
+                                    <SpriteIcon name="Timer" size={24} />
+                                </div>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max={Math.floor(maxOfflineHours)}
+                                    className="w-full bg-bg-input border border-border rounded-xl py-4 pl-12 pr-12 text-white font-mono text-xl font-bold focus:border-accent-primary outline-none transition-colors"
+                                    value={Math.floor(totalOfflineHours)}
+                                    onChange={(e) => {
+                                        const h = parseInt(e.target.value) || 0;
+                                        const m = Math.round((totalOfflineHours - Math.floor(totalOfflineHours)) * 60);
+                                        setTotalOfflineHours(Math.min(maxOfflineHours, h + (m / 60)));
+                                    }}
+                                    placeholder="0"
+                                />
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-text-muted">H</span>
+                            </div>
+
+                            {/* Minutes */}
+                            <div className="relative group">
+                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary group-focus-within:text-accent-primary transition-colors pointer-events-none">
+                                    <SpriteIcon name="Timer" size={24} className="opacity-50" />
+                                </div>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="59"
+                                    className="w-full bg-bg-input border border-border rounded-xl py-4 pl-12 pr-12 text-white font-mono text-xl font-bold focus:border-accent-primary outline-none transition-colors"
+                                    value={Math.round((totalOfflineHours - Math.floor(totalOfflineHours)) * 60)}
+                                    onChange={(e) => {
+                                        const m = Math.min(59, Math.max(0, parseInt(e.target.value) || 0));
+                                        const h = Math.floor(totalOfflineHours);
+                                        setTotalOfflineHours(Math.min(maxOfflineHours, h + (m / 60)));
+                                    }}
+                                    placeholder="0"
+                                />
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-text-muted">M</span>
+                            </div>
                         </div>
+                        <p className="text-[10px] text-text-muted italic mt-6 px-1">
+                            Calculated using base game rates from IdleConfig. Rewards are constant across all stages.
+                        </p>
                     </Card>
 
                     <Card className="bg-gradient-to-br from-bg-secondary to-bg-card border-none">
-                        <h3 className="font-bold text-accent-secondary mb-3">Offline Limits</h3>
-                        <div className="grid grid-cols-3 gap-4 text-center">
+                        <h3 className="font-bold text-accent-secondary mb-3 text-center uppercase text-xs tracking-widest">Offline Capacity</h3>
+                        <div className="grid grid-cols-2 gap-4 text-center">
                             <div className="p-3 bg-black/20 rounded">
-                                <div className="text-xs text-text-muted">Base</div>
-                                <div className="font-bold">2h</div>
+                                <div className="text-xs text-text-muted uppercase font-bold">Base</div>
+                                <div className="font-bold">{baseMaxTimeHours}h</div>
                             </div>
-                            <div className="p-3 bg-black/20 rounded">
-                                <div className="text-xs text-text-muted">With Tech</div>
-                                <div className="font-bold text-accent-primary">8h+</div>
-                            </div>
-                            <div className="p-3 bg-black/20 rounded">
-                                <div className="text-xs text-text-muted">Max (VIP)</div>
-                                <div className="font-bold text-yellow-400">24h</div>
+                            <div className="p-3 bg-accent-primary/10 rounded border border-accent-primary/20">
+                                <div className="text-xs text-accent-primary uppercase font-bold">With Tech</div>
+                                <div className="font-bold text-accent-primary">
+                                    {formatHmMessages(maxOfflineHours)}
+                                </div>
                             </div>
                         </div>
                     </Card>
@@ -83,46 +192,77 @@ export default function Offline() {
 
                 {/* Results */}
                 <div className="space-y-6">
-                    <Card className="h-full flex flex-col justify-center">
-                        <h2 className="font-semibold mb-6 text-accent-primary text-center">Estimated Rewards</h2>
+                    <Card className="h-full">
+                        <h2 className="font-semibold mb-6 text-accent-primary text-center">Calculated Rates</h2>
 
-                        <div className="grid grid-cols-1 gap-4">
-                            <div className="p-4 bg-bg-input rounded-lg border border-border flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <GameIcon name="coin" className="w-8 h-8" />
-                                    <span className="font-medium text-text-secondary">Coins</span>
-                                </div>
-                                <div className="text-xl font-bold text-accent-primary">
-                                    {formatNumber(totalCoins)}
-                                </div>
-                            </div>
-
-                            <div className="p-4 bg-bg-input rounded-lg border border-border flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <GameIcon name="hammer" className="w-8 h-8" />
-                                    <span className="font-medium text-text-secondary">Hammers</span>
-                                </div>
-                                <div className="text-xl font-bold text-text-primary">
-                                    {formatNumber(totalHammers)}
-                                </div>
-                            </div>
-
-                            <div className="relative mt-4 p-4 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 rounded-lg border border-yellow-500/30 flex items-center justify-between overflow-hidden">
-                                <div className="absolute inset-0 bg-yellow-500/5 animate-pulse" />
-                                <div className="relative flex items-center gap-3">
-                                    <PlayCircle className="w-8 h-8 text-yellow-400" />
-                                    <div>
-                                        <span className="font-bold text-yellow-100 block">With Ad Bonus</span>
-                                        <span className="text-xs text-yellow-200/70">(Double Coins)</span>
+                        <div className="grid grid-cols-1 gap-4 mb-4">
+                            <div className="p-4 bg-bg-input rounded-xl border border-border/50 flex flex-col gap-1">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2 text-text-secondary text-sm">
+                                        <GameIcon name="coin" className="w-5 h-5" />
+                                        <span>Coins / Second</span>
+                                    </div>
+                                    <div className="text-xl font-bold text-accent-primary">
+                                        {rates.coinsPerSec.toFixed(2)}
                                     </div>
                                 </div>
-                                <div className="relative text-2xl font-bold text-yellow-400">
-                                    {formatNumber(withAd)}
+                                <div className="flex items-center justify-between text-[10px]">
+                                    <span className="text-text-muted">With Tech</span>
+                                    <span className="text-accent-primary">+{Math.round((bonuses.coinMultiplier - 1) * 100)}%</span>
+                                </div>
+                            </div>
+
+                            <div className="p-4 bg-bg-input rounded-xl border border-border/50 flex flex-col gap-1">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2 text-text-secondary text-sm">
+                                        <GameIcon name="hammer" className="w-5 h-5" />
+                                        <span>Hammers / Minute</span>
+                                    </div>
+                                    <div className="text-xl font-bold text-white">
+                                        {rates.hammersPerMin.toFixed(2)}
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-between text-[10px]">
+                                    <span className="text-text-muted">With Tech</span>
+                                    <span className="text-accent-tertiary">+{Math.round((bonuses.hammerMultiplier - 1) * 100)}%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="py-6 border-t border-border/50 mt-4">
+                            <h2 className="font-semibold mb-6 text-accent-primary text-center flex items-center justify-center gap-2">
+                                <TrendingUp className="w-5 h-5" />
+                                Estimated Total Earnings
+                            </h2>
+                            <div className="space-y-4">
+                                <div className="p-4 bg-accent-primary/5 rounded-xl border border-accent-primary/20 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <GameIcon name="coin" className="w-10 h-10" />
+                                        <span className="font-bold text-text-secondary">Coins</span>
+                                    </div>
+                                    <div className="text-3xl font-black text-accent-primary drop-shadow-glow">
+                                        {formatNumber(totalCoins)}
+                                    </div>
+                                </div>
+
+                                <div className="p-4 bg-white/5 rounded-xl border border-white/10 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <GameIcon name="hammer" className="w-10 h-10" />
+                                        <span className="font-bold text-text-secondary">Hammers</span>
+                                    </div>
+                                    <div className="text-3xl font-black text-white">
+                                        {formatNumber(totalHammers)}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </Card>
                 </div>
+            </div>
+
+            {/* Background Decoration */}
+            <div className="fixed -right-10 -bottom-10 opacity-5 pointer-events-none overflow-hidden">
+                <SpriteIcon name="Timer" size={256} className="grayscale" />
             </div>
         </div>
     );

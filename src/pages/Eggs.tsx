@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useEggsCalculator } from '../hooks/useEggsCalculator';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/UI/Card';
 import { cn } from '../lib/utils';
-import { Egg, Calculator, Percent, ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react';
+import { Calculator, Percent, ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react';
 import { SpriteIcon } from '../components/UI/SpriteIcon';
 // Updated to correct path
 const EGG_SPRITE_SHEET = './Texture2D/Eggs.png';
@@ -86,7 +86,7 @@ export default function Eggs() {
             {/* Header */}
             <div className="text-center space-y-2 mb-6">
                 <h1 className="text-4xl font-bold bg-gradient-to-r from-accent-primary to-accent-secondary bg-clip-text text-transparent inline-flex items-center gap-3">
-                    <Egg className="w-8 h-8 text-accent-primary" />
+                    <SpriteIcon name="Egg" size={40} />
                     Egg Calculator
                 </h1>
                 <p className="text-text-secondary">Optimize your egg hatching for Guild Wars</p>
@@ -208,7 +208,7 @@ export default function Eggs() {
                         <Card className="p-6 bg-gradient-to-r from-bg-secondary via-bg-secondary/80 to-bg-secondary border-accent-primary/20">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
-                                    <Egg className="w-5 h-5 text-accent-primary" />
+                                    <SpriteIcon name="Egg" size={20} />
                                     Inventory
                                 </CardTitle>
                             </CardHeader>
@@ -419,7 +419,7 @@ export default function Eggs() {
                                         </button>
                                     </div>
                                     <div className="flex items-center gap-2 bg-accent-primary/10 px-3 py-1.5 rounded-lg border border-accent-primary/20">
-                                        <Egg className="w-4 h-4 text-accent-primary" />
+                                        <SpriteIcon name="Egg" size={16} />
                                         <span className="font-bold text-accent-primary text-base">{(todayTotalDrops || 0).toFixed(2)}</span>
                                         <span className="text-text-secondary">Expected</span>
                                     </div>
@@ -487,6 +487,10 @@ export default function Eggs() {
                     </Card>
                 </div>
             )}
+            {/* Background Decoration */}
+            <div className="absolute -right-10 -bottom-10 opacity-5 pointer-events-none overflow-hidden">
+                <SpriteIcon name="Egg" size={256} className="grayscale" />
+            </div>
         </div>
     );
 }

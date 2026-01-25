@@ -1,7 +1,6 @@
 
 import { useState, useMemo } from 'react';
 import { Card } from '../components/UI/Card';
-import { GameIcon } from '../components/UI/GameIcon';
 import { useGameData } from '../hooks/useGameData';
 import { cn } from '../lib/utils';
 import { Sword, Heart, Trophy, Play, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
@@ -338,7 +337,7 @@ export default function Dungeons() {
             <div className="flex flex-col md:flex-row items-center justify-between gap-6 border-b border-white/10 pb-6">
                 <div>
                     <h1 className="text-3xl font-bold bg-gradient-to-r from-accent-primary to-accent-secondary bg-clip-text text-transparent mb-2 flex items-center gap-3">
-                        <GameIcon name="sword" className="w-8 h-8 text-accent-primary" />
+                        <SpriteIcon name="UnknownKey" size={40} className="drop-shadow-glow" />
                         Dungeon Analyzer
                     </h1>
                     <p className="text-text-secondary">Analyze enemy compositions and rewards for every stage.</p>
@@ -577,6 +576,10 @@ export default function Dungeons() {
                     customWaves={undefined}
                 />
             )}
+            {/* Background Decoration */}
+            <div className="absolute -right-10 -bottom-10 opacity-5 pointer-events-none overflow-hidden">
+                <SpriteIcon name="UnknownKey" size={256} className="grayscale" />
+            </div>
         </div>
     );
 }

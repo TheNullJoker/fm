@@ -3,7 +3,7 @@ import { useProfile } from '../../context/ProfileContext';
 import { useTreeMode } from '../../context/TreeModeContext';
 import { useGameData } from '../../hooks/useGameData';
 import { GameIcon } from '../../components/UI/GameIcon';
-import { Calculator, ArrowRightLeft } from 'lucide-react';
+import { ArrowRightLeft } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { AGES } from '../../utils/constants';
 
@@ -718,8 +718,8 @@ export default function ForgeCalculator() {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-accent-primary to-accent-secondary bg-clip-text text-transparent mb-2 flex items-center gap-3">
-                        <Calculator className="w-8 h-8 text-accent-primary" />
+                    <h1 className="text-4xl font-bold bg-gradient-to-r from-accent-primary to-accent-secondary bg-clip-text text-transparent mb-2 flex items-center gap-3">
+                        <img src="./Texture2D/Anvil.png" alt="Forge" className="w-10 h-10 object-contain" />
                         Forge Calculator
                     </h1>
                     <p className="text-text-secondary">
@@ -975,6 +975,11 @@ export default function ForgeCalculator() {
                     </div>
                 </div>
             )}
+
+            {/* Background Decoration */}
+            <div className="absolute -right-10 -bottom-10 opacity-5 pointer-events-none overflow-hidden">
+                <img src="./Texture2D/Anvil.png" alt="" className="w-64 h-64 object-contain grayscale" />
+            </div>
         </div>
     );
 }
