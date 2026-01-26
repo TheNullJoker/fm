@@ -312,7 +312,7 @@ export default function ForgeCalculator() {
         const averageLevelBonus = totalBonus / 8;
 
         // Calculate Limits per slot (for display purposes)
-        const base = balancingConfig?.ItemBaseMaxLevel || 98;
+        const base = (balancingConfig?.ItemBaseMaxLevel || 98) + 1;
         const slotLimits: Record<string, number> = {};
         const allSlots = ['Weapon', 'Helmet', 'Body', 'Glove', 'Ring', 'Necklace', 'Belt', 'Shoe'];
 
@@ -372,7 +372,7 @@ export default function ForgeCalculator() {
 
         // Calculate Effective Max Level (Avg)
         // This is the "Reference level" used to determine which Forge Age isDropped and its base price.
-        const base = balancingConfig.ItemBaseMaxLevel;
+        const base = (balancingConfig.ItemBaseMaxLevel || 98) + 1;
 
         if (usePlayerItems) {
             // Priority 1: Actual items in inventory (captures enhancement + tech + latent)
@@ -487,7 +487,7 @@ export default function ForgeCalculator() {
 
                 // Base Level + Slot Tech + Latent Bonus - Age Offset
                 // Note: Latent Bonus is global (Forge Level), Slot Tech is specific.
-                const slotLevel = balancingConfig.ItemBaseMaxLevel + slotTechBonus + (bonuses.latentLevelBonus || 0) - (ageOffset * 5);
+                const slotLevel = (balancingConfig.ItemBaseMaxLevel + 1) + slotTechBonus + (bonuses.latentLevelBonus || 0) - (ageOffset * 5);
 
                 const baseScaling = 1.0100000000093132;
                 const basePrice = balancingConfig.SellBasePrice * Math.pow(baseScaling, slotLevel);
@@ -545,7 +545,7 @@ export default function ForgeCalculator() {
                     slotTechBonus = profileSlotBonuses[slot] || 0;
                 }
 
-                const slotLevel = balancingConfig.ItemBaseMaxLevel + slotTechBonus + (bonuses.latentLevelBonus || 0) - (ageOffset * 5);
+                const slotLevel = (balancingConfig.ItemBaseMaxLevel + 1) + slotTechBonus + (bonuses.latentLevelBonus || 0) - (ageOffset * 5);
                 const baseScaling = 1.0100000000093132;
                 const basePrice = balancingConfig.SellBasePrice * Math.pow(baseScaling, slotLevel);
                 ageTotalCoins += basePrice;
@@ -659,7 +659,7 @@ export default function ForgeCalculator() {
                                 </button>
 
                                 <div className="text-xs font-mono font-bold text-text-secondary text-center">
-                                    {n.key === 'SellPrice' ? (currentVal * 100).toFixed(0) : currentVal.toFixed(0)} <span className="opacity-50 text-[9px]">/ {n.key === 'SellPrice' ? (maxVal * 100).toFixed(0) : maxVal.toFixed(0)}</span>
+                                    {(n.key === 'SellPrice' || n.key === 'FreeForgeChance') ? (currentVal * 100).toFixed(0) : currentVal.toFixed(0)} <span className="opacity-50 text-[9px]">/ {(n.key === 'SellPrice' || n.key === 'FreeForgeChance') ? (maxVal * 100).toFixed(0) : maxVal.toFixed(0)}</span>
                                 </div>
 
                                 <button
