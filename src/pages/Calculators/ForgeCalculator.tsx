@@ -535,7 +535,7 @@ export default function ForgeCalculator() {
         Object.entries(forgeStats.dropChanceData).forEach(([key, val]) => {
             const chanceVal = val as number;
             if (!key.startsWith('Age') || typeof chanceVal !== 'number' || chanceVal <= 0) return;
-            const ageIdx = parseInt(key.replace('Age', ''));
+            // const ageIdx = parseInt(key.replace('Age', '')); // Removed
             // const ageOffset = maxAgeIdx - ageIdx; // Removed
 
             let ageTotalCoinsMin = 0;
