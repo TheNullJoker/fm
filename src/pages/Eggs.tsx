@@ -315,78 +315,94 @@ export default function Eggs() {
                                         <div className="space-y-4">
                                             <h3 className="font-bold text-text-primary">Slot Schedule (Priority by Points)</h3>
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                {optimization.timeline?.map((slotEvents: any[], slotIdx: number) => (
-                                                    <div key={slotIdx} className="bg-bg-primary rounded-xl border border-border overflow-hidden flex flex-col">
-                                                        {/* Slot Header */}
-                                                        <div className="bg-black/20 p-3 border-b border-border/50 flex justify-between items-center">
-                                                            <div className="font-bold text-text-secondary flex items-center gap-2">
-                                                                <img src="./Texture2D/HatchBed.png" alt="Bed" className="w-4 h-4 opacity-70" />
-                                                                Slot {slotIdx + 1}
-                                                            </div>
-                                                            <div className="text-xs text-text-tertiary font-mono">
-                                                                {slotEvents.length} Eggs
-                                                            </div>
-                                                        </div>
+                                                {optimization.timeline?.map((slotEvents: any[], slotIdx: number) => {
+                                                    const slotDuration = slotEvents.length > 0 ? slotEvents[slotEvents.length - 1].endTime : 0;
 
-                                                        {/* Vertical List */}
-                                                        <div className="p-2 space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar">
-                                                            {slotEvents.length > 0 ? (
-                                                                slotEvents.map((event: any, idx: number) => {
-                                                                    const itemKey = `${slotIdx}-${idx}`;
-                                                                    const isChecked = checkedItems[itemKey] || false;
-
-                                                                    return (
-                                                                        <div
-                                                                            key={idx}
-                                                                            onClick={() => {
-                                                                                setCheckedItems(prev => ({
-                                                                                    ...prev,
-                                                                                    [itemKey]: !prev[itemKey]
-                                                                                }));
-                                                                            }}
-                                                                            className={cn(
-                                                                                "relative flex items-center gap-3 p-2 rounded-lg border transition-all cursor-pointer group",
-                                                                                isChecked
-                                                                                    ? "bg-black/20 border-border/20 opacity-50 grayscale hover:opacity-70 hover:grayscale-0"
-                                                                                    : `border-rarity-${event.rarity}/30 bg-rarity-${event.rarity}/5 hover:bg-white/5`
-                                                                            )}
-                                                                        >
-                                                                            {/* Time Marker */}
-                                                                            <div className={cn("absolute left-0 top-0 bottom-0 w-1 rounded-l-lg transition-colors", isChecked ? "bg-text-tertiary" : "")} style={!isChecked ? { backgroundColor: `var(--color-rarity-${event.rarity})` } : {}} />
-
-                                                                            {/* Checkbox */}
-                                                                            <div className={cn(
-                                                                                "w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-all",
-                                                                                isChecked
-                                                                                    ? "bg-accent-primary border-accent-primary text-bg-primary"
-                                                                                    : "border-text-tertiary/50 group-hover:border-text-secondary"
-                                                                            )}>
-                                                                                {isChecked && <Plus className="w-3 h-3 rotate-45" />}
-                                                                            </div>
-
-                                                                            <EggIcon rarity={event.rarity} size={32} />
-
-                                                                            <div className="flex-1 min-w-0">
-                                                                                <div className={cn("font-bold text-sm truncate", isChecked ? "text-text-muted line-through" : `text-rarity-${event.rarity}`)}>
-                                                                                    {event.rarity}
-                                                                                </div>
-                                                                                <div className="flex items-center gap-2 text-[10px] text-text-muted font-mono">
-                                                                                    <span>{formatTime(event.startTime * 60)}</span>
-                                                                                    <span className="text-text-tertiary">➜</span>
-                                                                                    <span>{formatTime(event.endTime * 60)}</span>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    );
-                                                                })
-                                                            ) : (
-                                                                <div className="text-center py-8 text-xs text-text-tertiary italic">
-                                                                    Unused
+                                                    return (
+                                                        <div key={slotIdx} className="bg-bg-primary rounded-xl border border-border overflow-hidden flex flex-col">
+                                                            {/* Slot Header */}
+                                                            <div className="bg-black/20 p-3 border-b border-border/50 flex justify-between items-center">
+                                                                <div className="font-bold text-text-secondary flex items-center gap-2">
+                                                                    <img src="./Texture2D/HatchBed.png" alt="Bed" className="w-4 h-4 opacity-70" />
+                                                                    Slot {slotIdx + 1}
                                                                 </div>
-                                                            )}
+                                                                <div className="flex flex-col items-end">
+                                                                    <div className="text-xs font-bold text-text-primary">
+                                                                        {formatTime(slotDuration * 60)}
+                                                                    </div>
+                                                                    <div className="text-[10px] text-text-tertiary font-mono">
+                                                                        {slotEvents.length} Eggs
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Vertical List */}
+                                                            <div className="p-2 space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar">
+                                                                {slotEvents.length > 0 ? (
+                                                                    slotEvents.map((event: any, idx: number) => {
+                                                                        const itemKey = `${slotIdx}-${idx}`;
+                                                                        const isChecked = checkedItems[itemKey] || false;
+
+                                                                        return (
+                                                                            <div
+                                                                                key={idx}
+                                                                                onClick={() => {
+                                                                                    setCheckedItems(prev => ({
+                                                                                        ...prev,
+                                                                                        [itemKey]: !prev[itemKey]
+                                                                                    }));
+                                                                                }}
+                                                                                className={cn(
+                                                                                    "relative flex items-center gap-3 p-2 rounded-lg border transition-all cursor-pointer group",
+                                                                                    isChecked
+                                                                                        ? "bg-black/20 border-border/20 opacity-50 grayscale hover:opacity-70 hover:grayscale-0"
+                                                                                        : `border-rarity-${event.rarity}/30 bg-rarity-${event.rarity}/5 hover:bg-white/5`
+                                                                                )}
+                                                                            >
+                                                                                {/* Time Marker */}
+                                                                                <div className={cn("absolute left-0 top-0 bottom-0 w-1 rounded-l-lg transition-colors", isChecked ? "bg-text-tertiary" : "")} style={!isChecked ? { backgroundColor: `var(--color-rarity-${event.rarity})` } : {}} />
+
+                                                                                {/* Checkbox */}
+                                                                                <div className={cn(
+                                                                                    "w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-all",
+                                                                                    isChecked
+                                                                                        ? "bg-accent-primary border-accent-primary text-bg-primary"
+                                                                                        : "border-text-tertiary/50 group-hover:border-text-secondary"
+                                                                                )}>
+                                                                                    {isChecked && <Plus className="w-3 h-3 rotate-45" />}
+                                                                                </div>
+
+                                                                                <EggIcon rarity={event.rarity} size={32} />
+
+                                                                                <div className="flex-1 min-w-0 grid grid-cols-1 gap-1">
+                                                                                    <div className={cn("font-bold text-sm leading-tight break-words", isChecked ? "text-text-muted line-through" : `text-rarity-${event.rarity}`)}>
+                                                                                        {event.rarity}
+                                                                                    </div>
+
+                                                                                    <div className="flex items-center gap-2 text-[10px] text-text-muted font-mono">
+                                                                                        <span>{formatTime(event.startTime * 60)}</span>
+                                                                                        <span className="text-text-tertiary">➜</span>
+                                                                                        <span>{formatTime(event.endTime * 60)}</span>
+                                                                                    </div>
+
+                                                                                    {event.efficiency > 0 && (
+                                                                                        <div className="justify-self-start text-[10px] font-mono text-text-tertiary bg-black/30 px-1.5 py-0.5 rounded border border-white/5 whitespace-nowrap">
+                                                                                            {event.efficiency.toFixed(4)} PPS
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    })
+                                                                ) : (
+                                                                    <div className="text-center py-8 text-xs text-text-tertiary italic">
+                                                                        Unused
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     </>

@@ -19,6 +19,7 @@ export interface TimelineEvent {
     startTime: number; // minutes
     endTime: number; // minutes
     duration: number; // minutes
+    efficiency: number; // Points Per Second
 }
 
 export type Timeline = TimelineEvent[][];
@@ -42,12 +43,25 @@ export function useEggsCalculator() {
     };
 
     // --- Optimization State ---
-    const [ownedEggs, setOwnedEggs] = useState<Record<string, number>>({
-        Common: 0, Rare: 0, Epic: 0, Legendary: 0, Ultimate: 0, Mythic: 0
+    // Load from Profile instead of LocalStorage
+    const [ownedEggs, setOwnedEggs] = useState<Record<string, number>>(() => {
+        return (profile?.misc as any)?.ownedEggs || {
+            Common: 0, Rare: 0, Epic: 0, Legendary: 0, Ultimate: 0, Mythic: 0
+        };
     });
+
     const [timeLimitHours, setTimeLimitHours] = useState(24);
     const [availableSlots, _setAvailableSlots] = useState(3);
-    const maxSlots = petConfig?.EggHatchSlotMaxCount || 4; // Dynamic max from config
+    const maxSlots = petConfig?.EggHatchSlotMaxCount || 4;
+
+    // Sync from profile when profile changes (e.g. user switch)
+    useEffect(() => {
+        const saved = (profile?.misc as any)?.ownedEggs;
+        if (saved) {
+            setOwnedEggs(saved);
+        }
+    }, [profile]);
+
 
     const setAvailableSlots = (val: number) => {
         const safeVal = Math.min(maxSlots, Math.max(1, val));
@@ -61,7 +75,7 @@ export function useEggsCalculator() {
     const [selectedStage, _setSelectedStage] = useState(1);
 
     const setSelectedStage = (val: number) => {
-        const safeVal = Math.min(Math.max(1, val), 100); // 1-100 limit?
+        const safeVal = Math.min(Math.max(1, val), 100);
         _setSelectedStage(safeVal);
         if (profile) {
             updateNestedProfile('misc', { eggStage: safeVal });
@@ -78,12 +92,9 @@ export function useEggsCalculator() {
         }
     };
 
-    // Load State
+    // Load generic misc settings
     useEffect(() => {
         if (profile) {
-            const savedOwned = localStorage.getItem('eggCalc_owned');
-            if (savedOwned) setOwnedEggs(JSON.parse(savedOwned));
-
             if (profile.misc?.eggSlots) {
                 if (profile.misc?.eggSlots && profile.misc.eggSlots !== availableSlots) {
                     _setAvailableSlots(profile.misc.eggSlots);
@@ -100,13 +111,13 @@ export function useEggsCalculator() {
         }
     }, [profile]);
 
-    // Save State
+    // Save State to Profile
     const updateOwnedEggs = (rarity: string, count: number) => {
         const newEggs = { ...ownedEggs, [rarity]: count };
         setOwnedEggs(newEggs);
-        localStorage.setItem('eggCalc_owned', JSON.stringify(newEggs));
 
-        // Optional: Save to profile if we had a dedicated field
+        // Save to Profile
+        updateNestedProfile('misc', { ownedEggs: newEggs });
     };
 
 
@@ -204,11 +215,12 @@ export function useEggsCalculator() {
         const totalMinutesAvailable = timeLimitHours * 60;
         const rarities = ['Common', 'Rare', 'Epic', 'Legendary', 'Ultimate', 'Mythic'];
 
-        // 1. Prepare Pool of All Eggs (Sorted by Efficiency)
+        // 1. Prepare Pool of All Eggs
         interface EggCandidate {
             rarity: string;
             time: number; // minutes
-            eff: number;  // points per minute
+            timeSeconds: number; // seconds
+            eff: number;  // points per SECOND
             hPoints: number;
             mPoints: number;
         }
@@ -218,33 +230,30 @@ export function useEggsCalculator() {
             const count = ownedEggs[rarity] || 0;
             if (count <= 0) return;
 
-            const time = (hatchValuesProfile[rarity] || 0) / 60;
+            const timeSeconds = (hatchValuesProfile[rarity] || 0);
+            const time = timeSeconds / 60; // minutes
+
             const h = warPoints[rarity]?.hatch || 0;
             const m = warPoints[rarity]?.merge || 0;
             const totalP = h + m;
 
-            // Efficiency: Points / Time
-            // If time is 0 (shouldn't happen), use infinity
-            const eff = time > 0 ? totalP / time : 999999;
+            // Efficiency: Points / Seconds (Higher precision)
+            const eff = timeSeconds > 0 ? totalP / timeSeconds : 999999;
 
             for (let i = 0; i < count; i++) {
-                allCandidates.push({ rarity, time, eff, hPoints: h, mPoints: m });
+                allCandidates.push({ rarity, time, timeSeconds, eff, hPoints: h, mPoints: m });
             }
         });
 
-        // Sort descending by Total Points (Importance), then Time, then Efficiency
+        // Sort descending by Efficiency (PPS)
         allCandidates.sort((a, b) => {
+            // Primary: Efficiency (PPS) - Relaxed epsilon to allow Big Rocks preference for similar efficiencies
+            if (Math.abs(b.eff - a.eff) > 0.0001) return b.eff - a.eff;
+
+            // Secondary: Total Points (Importance/Size)
             const pointsA = a.hPoints + a.mPoints;
             const pointsB = b.hPoints + b.mPoints;
-
-            // Primary: High Points items first ("Most Important")
-            if (Math.abs(pointsB - pointsA) > 0.1) return pointsB - pointsA;
-
-            // Secondary: Time Descending (Big Rocks)
-            if (Math.abs(b.time - a.time) > 0.1) return b.time - a.time;
-
-            // Tertiary: Efficiency
-            return b.eff - a.eff;
+            return pointsB - pointsA;
         });
 
         // 2. Simulation State
@@ -288,7 +297,8 @@ export function useEggsCalculator() {
                     rarity: egg.rarity,
                     startTime,
                     endTime,
-                    duration: egg.time
+                    duration: egg.time,
+                    efficiency: egg.eff
                 });
                 toOpen[egg.rarity] = (toOpen[egg.rarity] || 0) + 1;
                 hPoints += egg.hPoints;
