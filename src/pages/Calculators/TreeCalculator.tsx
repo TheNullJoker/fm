@@ -17,7 +17,7 @@ export default function TreeCalculator() {
         applyUpgrades
     } = useTreeOptimizer();
 
-    const { profile } = useProfile();
+    const { profile, updateNestedProfile } = useProfile();
     const { treeMode } = useTreeMode();
 
     const { data: treeMapping } = useGameData<any>('TechTreeMapping.json');
@@ -226,6 +226,50 @@ export default function TreeCalculator() {
                             </div>
                         </div>
 
+                        {/* Gem Speedup */}
+                        <div className="space-y-3 pt-4 border-t border-white/5">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <SpriteIcon name="GemSquare" size={16} />
+                                    <span className="text-xs font-bold text-text-secondary uppercase">Gem Time Skips</span>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only peer"
+                                        checked={profile.misc.useGemsInCalculators}
+                                        onChange={(e) => updateNestedProfile('misc', { useGemsInCalculators: e.target.checked })}
+                                    />
+                                    <div className="w-9 h-5 bg-bg-input peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent-primary"></div>
+                                </label>
+                            </div>
+
+                            {profile.misc.useGemsInCalculators && (
+                                <div className="relative group animate-in fade-in slide-in-from-top-2">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary group-focus-within:text-accent-primary transition-colors pointer-events-none">
+                                        <SpriteIcon name="GemSquare" size={20} className="opacity-50" />
+                                    </div>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        className="w-full bg-bg-input border border-border rounded-xl py-3 pl-12 pr-4 text-white font-mono text-lg font-bold focus:border-accent-primary outline-none transition-colors"
+                                        value={profile.misc.gemCount}
+                                        onChange={(e) => updateNestedProfile('misc', { gemCount: Math.max(0, parseInt(e.target.value) || 0) })}
+                                        placeholder=" Gems"
+                                    />
+                                    {optimization && (
+                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-mono text-text-secondary">
+                                            <span className={(optimization.totalGemsUsed || 0) > profile.misc.gemCount ? "text-error" : "text-accent-primary"}>
+                                                {optimization.totalGemsUsed}
+                                            </span>
+                                            <span className="mx-1">/</span>
+                                            <span>{profile.misc.gemCount}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
                         <div className="p-4 bg-accent-primary/5 rounded-lg border border-accent-primary/20 flex gap-3 items-start">
                             <Info size={16} className="text-accent-primary shrink-0 mt-0.5" />
                             <p className="text-[11px] text-text-secondary leading-relaxed">
@@ -364,6 +408,12 @@ export default function TreeCalculator() {
                                                                 <SpriteIcon name="Potion" size={10} />
                                                                 {action.cost}
                                                             </div>
+                                                            {action.gemCost && action.gemCost > 0 && (
+                                                                <div className="flex items-center gap-1 text-accent-primary font-bold">
+                                                                    <SpriteIcon name="GemSquare" size={10} />
+                                                                    {Math.ceil(action.gemCost)}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                         <div className="text-accent-primary font-bold">
                                                             +{action.points.toLocaleString()} pts

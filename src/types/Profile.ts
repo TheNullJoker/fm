@@ -118,6 +118,8 @@ export interface UserProfile {
             Egg: number;
             Potion: number;
         };
+        gemCount: number;
+        useGemsInCalculators: boolean;
     };
 }
 
@@ -185,6 +187,8 @@ export const INITIAL_PROFILE: UserProfile = {
             Skill: 0,
             Egg: 0,
             Potion: 0
-        }
+        },
+        gemCount: 0,
+        useGemsInCalculators: false
     }
 };

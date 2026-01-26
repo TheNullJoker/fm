@@ -15,6 +15,7 @@ export interface TechUpgrade {
     points: number;
     tier: number;
     sprite_rect?: { x: number; y: number; width: number; height: number };
+    gemCost?: number;
 }
 
 export function useTreeOptimizer() {
@@ -77,8 +78,10 @@ export function useTreeOptimizer() {
     };
 
     // 4. Optimization Logic
+    const { data: forgeConfig } = useGameData<any>('ForgeConfig.json');
+
     const optimization = useMemo(() => {
-        if (!mapping || !library || !upgradeLibrary || !dayConfig) return null;
+        if (!mapping || !library || !upgradeLibrary || !dayConfig || !forgeConfig) return null;
 
         // Map Tier -> Points
         const tierPoints: Record<number, number> = {
@@ -107,24 +110,30 @@ export function useTreeOptimizer() {
         }
 
         let totalPoints = 0;
-        let timeRemainingSeconds = timeLimitHours * 3600;
+        const baseTimeLimitSeconds = timeLimitHours * 3600;
+
+        // Track resources
+        let accumulatedTimeSeconds = 0;
+        let accumulatedGemCost = 0;
+        const gemLimit = (profile.misc.useGemsInCalculators ? profile.misc.gemCount : 0);
         let potionsRemaining = potions;
+
         const actions: TechUpgrade[] = [];
+        const gemCostPerSecond = forgeConfig.TechTreeGemSkipCostPerSecond || 0.003;
 
         // Simple Greedy Simulation
-        // While we have time and potions, find all "available" upgrades
-        // Selection criteria: Max (Points / Duration) to fit most inside 1h or 24h?
-        // Actually Max Points / Duration is usually best for time-limited ranking
-
         const maxIter = 500; // Safety break
         let iter = 0;
 
-        while (timeRemainingSeconds > 0 && potionsRemaining > 0 && iter < maxIter) {
+        // We continue as long as we can potentially perform an action.
+        // Determining "can perform" is handled inside by the search for a candidate.
+        while (iter < maxIter) {
             iter++;
-            const possibleUpgrades: TechUpgrade[] = [];
 
             // Calculate current bonuses
             const bonuses = calculateTechBonuses(currentTree);
+
+            const possibleUpgrades: TechUpgrade[] = [];
 
             // Find all available upgrades
             Object.entries(mapping.trees || {}).forEach(([treeName, treeDef]: [string, any]) => {
@@ -137,7 +146,7 @@ export function useTreeOptimizer() {
                     if (currentLvl < maxLvl) {
                         // Check requirements
                         const reqsMet = (node.requirements || []).every((reqId: number) => {
-                            return (currentTree[treeName]?.[reqId] || 0) >= 1; // Usually need lvl 1 to unlock next
+                            return (currentTree[treeName]?.[reqId] || 0) >= 1;
                         });
 
                         if (reqsMet) {
@@ -173,36 +182,76 @@ export function useTreeOptimizer() {
             if (possibleUpgrades.length === 0) break;
 
             // Sort by efficiency (Points / Duration)
-            // If duration is 0, give it high priority
             possibleUpgrades.sort((a, b) => (b.points / (b.duration || 1)) - (a.points / (a.duration || 1)));
 
-            // Find first one that fits budget
-            const best = possibleUpgrades.find(upg => upg.cost <= potionsRemaining && upg.duration <= timeRemainingSeconds);
+            // Find first one that fits budget (Potions AND Gems)
+            const best = possibleUpgrades.find(upg => {
+                // Check Potion Cost
+                if (upg.cost > potionsRemaining) return false;
+
+                // Check Gem Cost
+                const startTime = accumulatedTimeSeconds;
+                const endTime = startTime + upg.duration;
+                let neededGems = 0;
+
+                if (endTime > baseTimeLimitSeconds) {
+                    const overlap = Math.min(upg.duration, endTime - Math.max(startTime, baseTimeLimitSeconds));
+                    if (overlap > 0) {
+                        neededGems = Math.ceil(overlap * gemCostPerSecond);
+                    }
+                }
+
+                if (neededGems > (gemLimit - accumulatedGemCost)) return false;
+
+                return true;
+            });
 
             if (best) {
-                actions.push(best);
+                // Re-calculate gem cost to attach (could optimize by returning it from find, but this is cheap)
+                const startTime = accumulatedTimeSeconds;
+                const endTime = startTime + best.duration;
+                let gemCost = 0;
+                if (endTime > baseTimeLimitSeconds) {
+                    const overlap = Math.min(best.duration, endTime - Math.max(startTime, baseTimeLimitSeconds));
+                    if (overlap > 0) {
+                        gemCost = Math.ceil(overlap * gemCostPerSecond);
+                    }
+                }
+
+                actions.push({ ...best, gemCost });
+
                 totalPoints += best.points;
                 potionsRemaining -= best.cost;
-                timeRemainingSeconds -= best.duration;
+                accumulatedTimeSeconds += best.duration;
+                accumulatedGemCost += gemCost;
+
                 // Update virtual tree
                 if (!currentTree[best.tree]) currentTree[best.tree] = {};
                 currentTree[best.tree][best.nodeId] = best.toLevel;
             } else {
-                // No more upgrades fit
+                // No upgrades fit our remaining resources
                 break;
             }
         }
 
+        // Calculate total time used
+        const usedSeconds = accumulatedTimeSeconds;
+        const gemTimeSeconds = Math.max(0, usedSeconds - baseTimeLimitSeconds);
+        const baseTimeSeconds = Math.min(usedSeconds, baseTimeLimitSeconds);
+
         return {
             totalPoints,
             actions,
-            timeUsed: (timeLimitHours * 3600 - timeRemainingSeconds) / 3600,
+            timeUsed: usedSeconds / 3600,
+            baseTimeUsed: baseTimeSeconds / 3600,
+            gemTimeUsed: gemTimeSeconds / 3600,
             potionsUsed: potions - potionsRemaining,
             remainingPotions: potionsRemaining,
-            finalBonuses: calculateTechBonuses(currentTree)
+            finalBonuses: calculateTechBonuses(currentTree),
+            totalGemsUsed: accumulatedGemCost
         };
 
-    }, [mapping, library, upgradeLibrary, dayConfig, treeMode, profile.techTree, timeLimitHours, potions]);
+    }, [mapping, library, upgradeLibrary, dayConfig, treeMode, profile.techTree, timeLimitHours, potions, forgeConfig, profile.misc.gemCount, profile.misc.useGemsInCalculators]);
 
     const applyUpgrades = (selectedActions: TechUpgrade[]) => {
         if (selectedActions.length === 0) return;

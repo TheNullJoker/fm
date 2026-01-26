@@ -108,6 +108,9 @@ export default function ForgeCalculator() {
     // Manual Bonuses State (overrides user tech tree)
     const [manualBonuses, setManualBonuses] = useState<Record<string, number>>({});
 
+    // Simulation Forge Level (Defaults to Profile Level, not persisted)
+    const [simulatedForgeLevel, setSimulatedForgeLevel] = useState(profile.misc.forgeLevel || 1);
+
     const [hammersInput, setHammersInput] = useState<string>(() => profile.misc.forgeCalculator?.hammers || '0');
     const [goldInput, setGoldInput] = useState<string>(() => profile.misc.forgeCalculator?.targetGold || '0');
 
@@ -149,6 +152,13 @@ export default function ForgeCalculator() {
     const { data: techTreeLib } = useGameData<TechTreeLibrary>('TechTreeLibrary.json');
     const { data: techTreeMap } = useGameData<any>('TechTreeMapping.json');
     const { data: guildWarConfig } = useGameData<GuildWarDayConfig>('GuildWarDayConfigLibrary.json');
+    const { data: forgeUpgradeData } = useGameData<any>('ForgeUpgradeLibrary.json');
+
+    const maxForgeLevel = useMemo(() => {
+        if (!forgeUpgradeData) return 100;
+        const levels = Object.keys(forgeUpgradeData).map(Number);
+        return Math.max(...levels, 1);
+    }, [forgeUpgradeData]);
 
     // Parse War Points from Config
     const warPointsPerAge = useMemo(() => {
@@ -362,7 +372,7 @@ export default function ForgeCalculator() {
     const forgeStats = useMemo(() => {
         if (!brackets || !dropChances || !profile || !balancingConfig) return null;
 
-        const currentForgeLevel = profile.misc.forgeLevel || 1;
+        const currentForgeLevel = simulatedForgeLevel;
         let referenceLevel = 0;
         let referenceSource = "Unknown";
 
@@ -435,7 +445,7 @@ export default function ForgeCalculator() {
             currentBracket
         };
 
-    }, [profile, brackets, balancingConfig, dropChances, bonuses, usePlayerItems, manualBonuses]);
+    }, [profile, brackets, balancingConfig, dropChances, bonuses, usePlayerItems, manualBonuses, simulatedForgeLevel]);
 
 
     // 3. Perform Final Calculation (Bidirectional)
@@ -771,6 +781,53 @@ export default function ForgeCalculator() {
                     <p className="text-text-secondary">
                         Plan your forging strategy. Switch modes to calculate costs or rewards.
                     </p>
+                </div>
+            </div>
+
+            {/* Simulation Level Slider */}
+            <div className="card p-4 border-accent-primary/20 bg-bg-secondary/30 backdrop-blur-md">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                        <span className="font-bold text-white">Simulated Forge Level</span>
+                        {simulatedForgeLevel !== profile.misc.forgeLevel && (
+                            <span className="text-xs text-text-muted">(My Level: {profile.misc.forgeLevel})</span>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="number"
+                            min="1"
+                            max={maxForgeLevel}
+                            value={simulatedForgeLevel}
+                            onChange={(e) => setSimulatedForgeLevel(Math.max(1, Math.min(maxForgeLevel, parseInt(e.target.value) || 1)))}
+                            className="w-16 bg-bg-input border border-border rounded px-2 py-1 text-center font-mono font-bold text-white outline-none focus:border-accent-primary"
+                        />
+                        {simulatedForgeLevel !== profile.misc.forgeLevel && (
+                            <button
+                                onClick={() => setSimulatedForgeLevel(profile.misc.forgeLevel || 1)}
+                                className="text-xs text-accent-primary hover:text-white underline ml-2"
+                            >
+                                Reset
+                            </button>
+                        )}
+                    </div>
+                </div>
+                <div className="relative pt-1">
+                    <input
+                        type="range"
+                        min="1"
+                        max={maxForgeLevel}
+                        value={simulatedForgeLevel}
+                        onChange={(e) => setSimulatedForgeLevel(parseInt(e.target.value))}
+                        className="w-full h-2 bg-bg-input rounded-lg appearance-none cursor-pointer accent-accent-primary hover:accent-accent-secondary"
+                    />
+                    <div className="flex justify-between text-[10px] text-text-muted font-mono mt-1">
+                        <span>1</span>
+                        <span>{Math.floor(maxForgeLevel * 0.25)}</span>
+                        <span>{Math.floor(maxForgeLevel * 0.5)}</span>
+                        <span>{Math.floor(maxForgeLevel * 0.75)}</span>
+                        <span>{maxForgeLevel}</span>
+                    </div>
                 </div>
             </div>
 

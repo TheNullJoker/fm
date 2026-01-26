@@ -4,12 +4,14 @@ import { useGameData } from '../../hooks/useGameData';
 import { useForgeUpgradeStats } from '../../hooks/useForgeCalculator';
 import { Card } from '../UI/Card';
 import { Button } from '../UI/Button';
+import { SpriteIcon } from '../UI/SpriteIcon';
 import { Plus, Minus } from 'lucide-react';
 
 export function MiscPanel() {
     const { profile, updateNestedProfile } = useProfile();
     const { data: petConfig } = useGameData<any>('PetBaseConfig.json');
     const { data: forgeData } = useGameData<any>('ForgeUpgradeLibrary.json');
+    const { data: forgeConfig } = useGameData<any>('ForgeConfig.json');
 
     // Determine max forge level from config
     const maxForgeLevel = forgeData ? Math.max(...Object.keys(forgeData).map(Number)) : 99;
@@ -140,24 +142,18 @@ export function MiscPanel() {
                             </div>
 
                             {/* Stats */}
-                            <div className="grid grid-cols-2 gap-2">
-                                <div className="flex flex-col items-center bg-bg-input py-2 rounded border border-border">
-                                    <span className="text-text-muted font-bold mb-1">Hammers (Total)</span>
-                                    <span className="font-bold text-text-primary">
-                                        {new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(upgradeStats.hammersToUpgrade)}
-                                    </span>
-                                    {upgradeStats.freeForgeChance > 0 && (
-                                        <span className="text-[9px] text-text-muted line-through">
-                                            {new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(upgradeStats.rawHammersNeeded)}
-                                        </span>
-                                    )}
-                                </div>
-
+                            <div className="grid grid-cols-1 gap-2">
                                 <div className="flex flex-col items-center bg-bg-input py-2 rounded border border-border">
                                     <span className="text-text-muted font-bold mb-1">Time</span>
                                     <span className="font-bold text-text-primary">
                                         {formatTime(upgradeStats.totalTimeSeconds)}
                                     </span>
+                                    {forgeConfig && upgradeStats.totalTimeSeconds > 0 && (
+                                        <div className="flex items-center gap-1 mt-0.5 text-accent-primary font-bold">
+                                            <SpriteIcon name="GemSquare" size={12} />
+                                            {Math.ceil(upgradeStats.totalTimeSeconds * (forgeConfig.ForgeGemSkipCostPerSecond || 0.013))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

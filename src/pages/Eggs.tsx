@@ -3,6 +3,7 @@ import { useEggsCalculator } from '../hooks/useEggsCalculator';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/UI/Card';
 import { cn } from '../lib/utils';
 import { Calculator, Percent, ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react';
+import { useProfile } from '../context/ProfileContext';
 import { SpriteIcon } from '../components/UI/SpriteIcon';
 
 // Updated to correct path
@@ -40,6 +41,7 @@ function EggIcon({ rarity, size = 48, className }: { rarity: string; size?: numb
 }
 
 export default function Eggs() {
+    const { profile, updateNestedProfile } = useProfile();
     const {
         ownedEggs, updateOwnedEggs,
         timeLimitHours, setTimeLimitHours,
@@ -218,6 +220,50 @@ export default function Eggs() {
                                                 onChange={(e) => setAvailableSlots(Math.min(maxSlots, Math.max(1, parseInt(e.target.value) || 1)))}
                                             />
                                         </div>
+
+                                        {/* Gem Speedup */}
+                                        <div className="space-y-2 col-span-1 sm:col-span-2 border-t border-white/5 pt-4 mt-2">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <SpriteIcon name="GemSquare" size={20} />
+                                                    <span className="text-sm font-bold text-text-secondary uppercase">Use Gems for Time Skips</span>
+                                                </div>
+                                                <label className="relative inline-flex items-center cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="sr-only peer"
+                                                        checked={profile.misc.useGemsInCalculators}
+                                                        onChange={(e) => updateNestedProfile('misc', { useGemsInCalculators: e.target.checked })}
+                                                    />
+                                                    <div className="w-11 h-6 bg-bg-input peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-primary"></div>
+                                                </label>
+                                            </div>
+
+                                            {profile.misc.useGemsInCalculators && (
+                                                <div className="relative group animate-in fade-in slide-in-from-top-2">
+                                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                                                        <SpriteIcon name="GemSquare" size={24} className="opacity-70" />
+                                                    </div>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        className="w-full bg-bg-input border border-border rounded-xl py-4 pl-12 pr-4 text-white font-mono text-xl font-bold focus:border-accent-primary outline-none transition-colors"
+                                                        value={profile.misc.gemCount}
+                                                        onChange={(e) => updateNestedProfile('misc', { gemCount: Math.max(0, parseInt(e.target.value) || 0) })}
+                                                        placeholder="Enter Gem Count"
+                                                    />
+                                                    {optimization && (
+                                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-mono text-text-secondary">
+                                                            <span className={optimization.totalGemsUsed > profile.misc.gemCount ? "text-error" : "text-accent-primary"}>
+                                                                {optimization.totalGemsUsed}
+                                                            </span>
+                                                            <span className="mx-1">/</span>
+                                                            <span>{profile.misc.gemCount}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </CardContent>
@@ -388,6 +434,13 @@ export default function Eggs() {
                                                                                     {event.efficiency > 0 && (
                                                                                         <div className="justify-self-start text-[10px] font-mono text-text-tertiary bg-black/30 px-1.5 py-0.5 rounded border border-white/5 whitespace-nowrap">
                                                                                             {event.efficiency.toFixed(4)} PPS
+                                                                                        </div>
+                                                                                    )}
+
+                                                                                    {event.gemCost && event.gemCost > 0 && (
+                                                                                        <div className="flex items-center gap-1 text-[10px] font-bold text-accent-primary bg-accent-primary/5 px-1.5 py-0.5 rounded border border-accent-primary/20 w-fit">
+                                                                                            <SpriteIcon name="GemSquare" size={12} />
+                                                                                            {Math.ceil(event.gemCost)}
                                                                                         </div>
                                                                                     )}
                                                                                 </div>

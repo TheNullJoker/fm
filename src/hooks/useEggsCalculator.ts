@@ -10,8 +10,11 @@ export interface EggOptimizationResult {
     hatchPoints: number;
     mergePoints: number;
     timeUsed: number;
+    baseTimeUsed: number;
+    gemTimeUsed: number;
     timeLeft: number;
     timeline: Timeline;
+    totalGemsUsed: number;
 }
 
 export interface TimelineEvent {
@@ -20,6 +23,7 @@ export interface TimelineEvent {
     endTime: number; // minutes
     duration: number; // minutes
     efficiency: number; // Points Per Second
+    gemCost?: number;
 }
 
 export type Timeline = TimelineEvent[][];
@@ -209,10 +213,11 @@ export function useEggsCalculator() {
     }, [guildWarConfig]);
 
     // --- Optimization Logic ---
-    const optimization = useMemo((): EggOptimizationResult | null => {
-        if (!hatchValuesProfile || !warPoints) return null;
+    const { data: forgeConfig } = useGameData<any>('ForgeConfig.json');
 
-        const totalMinutesAvailable = timeLimitHours * 60;
+    const optimization = useMemo((): EggOptimizationResult | null => {
+        if (!hatchValuesProfile || !warPoints || !forgeConfig) return null;
+
         const rarities = ['Common', 'Rare', 'Epic', 'Legendary', 'Ultimate', 'Mythic'];
 
         // 1. Prepare Pool of All Eggs
@@ -265,6 +270,10 @@ export function useEggsCalculator() {
         let hPoints = 0;
         let mPoints = 0;
 
+        let totalGemCost = 0;
+        const gemLimit = profile.misc.useGemsInCalculators ? profile.misc.gemCount : 0;
+        const gemCostPerSecond = forgeConfig.PetGemSkipCostPerSecond || 0.003;
+
         // 3. Greedy Assignment (Least Loaded / Earliest Finish)
         // User wants to balance slots ("non tutto sul primo") and minimize makespan.
         // Since we sorted by Time Descending (Big Rocks), using parameters of LPT (Longest Processing Time) 
@@ -276,10 +285,24 @@ export function useEggsCalculator() {
             let minCurrentTime = Number.MAX_VALUE;
 
             for (let i = 0; i < availableSlots; i++) {
-                // Must fit within limit
-                if (slots[i] + egg.time <= totalMinutesAvailable) {
-                    // We want the LEAST loaded slot to balance
-                    if (slots[i] < minCurrentTime) {
+                // Check if this slot is better (earlier)
+                if (slots[i] < minCurrentTime) {
+                    // Tentatively check if we can afford it with gems
+                    const startTime = slots[i];
+                    const endTime = startTime + egg.time;
+                    const baseMinutesAvailable = timeLimitHours * 60;
+
+                    let potentialGemCost = 0;
+                    if (endTime > baseMinutesAvailable) {
+                        const gemMinutes = Math.min(egg.time, endTime - Math.max(startTime, baseMinutesAvailable));
+                        if (gemMinutes > 0) {
+                            potentialGemCost = Math.ceil((gemMinutes * 60) * gemCostPerSecond);
+                        }
+                    }
+
+                    // Only consider this slot if we can afford the gems AND it fits within the base time limit
+                    // OR if it exceeds base time but we have gems for it.
+                    if (endTime <= baseMinutesAvailable || (totalGemCost + potentialGemCost <= gemLimit)) {
                         minCurrentTime = slots[i];
                         bestSlotIdx = i;
                     }
@@ -291,6 +314,17 @@ export function useEggsCalculator() {
                 const startTime = slots[bestSlotIdx];
                 const endTime = startTime + egg.time;
 
+                // Re-calculate Gem Cost (it should be the same as the check, but cleaner to recalc)
+                const baseMinutesAvailable = timeLimitHours * 60;
+                let gemCost = 0;
+
+                if (endTime > baseMinutesAvailable) {
+                    const gemMinutes = Math.min(egg.time, endTime - Math.max(startTime, baseMinutesAvailable));
+                    if (gemMinutes > 0) {
+                        gemCost = Math.ceil((gemMinutes * 60) * gemCostPerSecond);
+                    }
+                }
+
                 // Commit
                 slots[bestSlotIdx] = endTime;
                 timeline[bestSlotIdx].push({
@@ -298,11 +332,13 @@ export function useEggsCalculator() {
                     startTime,
                     endTime,
                     duration: egg.time,
-                    efficiency: egg.eff
+                    efficiency: egg.eff,
+                    gemCost
                 });
                 toOpen[egg.rarity] = (toOpen[egg.rarity] || 0) + 1;
                 hPoints += egg.hPoints;
                 mPoints += egg.mPoints;
+                totalGemCost += gemCost;
             }
         }
 
@@ -313,12 +349,15 @@ export function useEggsCalculator() {
             totalPoints: hPoints + mPoints,
             hatchPoints: hPoints,
             mergePoints: mPoints,
-            timeUsed: makeSpan, // This will now be <= totalMinutesAvailable
-            timeLeft: totalMinutesAvailable - makeSpan,
-            timeline
+            timeUsed: makeSpan,
+            baseTimeUsed: Math.min(makeSpan, (timeLimitHours * 60)),
+            gemTimeUsed: Math.max(0, makeSpan - (timeLimitHours * 60)),
+            timeLeft: Math.max(0, (timeLimitHours * 60) - makeSpan),
+            timeline,
+            totalGemsUsed: totalGemCost
         };
 
-    }, [ownedEggs, timeLimitHours, availableSlots, hatchValuesProfile, warPoints]);
+    }, [ownedEggs, timeLimitHours, availableSlots, hatchValuesProfile, warPoints, forgeConfig, profile.misc.gemCount, profile.misc.useGemsInCalculators]);
 
     // --- Tech Tree Bonus (Additive Chance) ---
     const eggDungeonBonus = useMemo(() => {

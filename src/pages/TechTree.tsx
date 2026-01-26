@@ -5,6 +5,7 @@ import { useGameData } from '../hooks/useGameData';
 import { cn } from '../lib/utils';
 import { FlaskConical, Hammer, Zap, Info, X, RefreshCw, Star } from 'lucide-react';
 import { getTechNodeName, getTechNodeDescription } from '../utils/techUtils';
+import { useTreeModifiers } from '../hooks/useCalculatedStats';
 import { useTreeMode } from '../context/TreeModeContext';
 
 const ICON_SIZE = 48;
@@ -20,6 +21,8 @@ export default function TechTree() {
     const { treeMode } = useTreeMode();
     const { data: treeMapping, loading: l1 } = useGameData<any>('TechTreeMapping.json');
     const { data: treeEffects, loading: l2 } = useGameData<any>('TechTreeLibrary.json');
+    const { data: upgradeLibrary, loading: l3 } = useGameData<any>('TechTreeUpgradeLibrary.json');
+    const modifiers = useTreeModifiers();
 
     const [activeTab, setActiveTab] = useState<TreeName>('Forge');
     const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
@@ -29,7 +32,15 @@ export default function TechTree() {
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-    const loading = l1 || l2;
+    const loading = l1 || l2 || l3;
+
+    // Helper for formatting time
+    const formatTime = (seconds: number) => {
+        if (seconds < 60) return `${seconds.toFixed(0)}s`;
+        if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${Math.floor(seconds % 60)}s`;
+        if (seconds < 86400) return `${(seconds / 3600).toFixed(1)}h`;
+        return `${(seconds / 86400).toFixed(1)}d`;
+    };
 
     // Get tree data from mapping
     const treesData = useMemo(() => treeMapping?.trees || {}, [treeMapping]);
@@ -462,7 +473,6 @@ export default function TechTree() {
                                     </div>
                                 </div>
 
-                                {/* Node Requirements */}
                                 {selectedNode.requirements?.length > 0 && (
                                     <div className="pt-2">
                                         <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2 block">Unlocks after:</label>
@@ -479,6 +489,64 @@ export default function TechTree() {
                                                         <Info className="w-4 h-4 text-accent-primary shrink-0" />
                                                         <span className="text-xs font-medium truncate">{getTechNodeName(reqNode.type)}</span>
                                                     </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {upgradeLibrary && upgradeLibrary[selectedNode.tier] && (
+                                    <div className="pt-4 mt-4 border-t border-border">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Upgrade Costs (Tier {selectedNode.tier})</label>
+                                            <div className="flex gap-2 text-[9px] font-bold uppercase">
+                                                <span className="text-text-muted">Base</span>
+                                                <span className="text-accent-primary">My Cost</span>
+                                            </div>
+                                        </div>
+                                        <div className="bg-bg-input/50 rounded-xl border border-border overflow-hidden">
+                                            <div className="grid grid-cols-3 gap-2 p-2 bg-white/5 text-[10px] font-bold text-text-muted uppercase">
+                                                <div>Rank</div>
+                                                <div>Cost (P)</div>
+                                                <div>Time</div>
+                                            </div>
+                                            {upgradeLibrary[selectedNode.tier].Levels.map((lvl: any, idx: number) => {
+                                                const rank = lvl.Level + 1;
+                                                const currentRank = localRanks[selectedNode.id] || 0;
+                                                const isUnlocked = currentRank >= rank;
+                                                const isNext = currentRank + 1 === rank;
+
+                                                const costBonus = modifiers['TechNodeUpgradeCost'] || 0;
+                                                const timeBonus = modifiers['TechResearchTimer'] || 0;
+
+                                                const myCost = Math.floor(lvl.Cost * (1 - costBonus));
+                                                const myDuration = lvl.Duration / (1 + timeBonus);
+
+                                                return (
+                                                    <div key={idx} className={cn(
+                                                        "grid grid-cols-3 gap-2 p-2 text-xs border-t border-border/50 font-mono",
+                                                        isUnlocked ? "bg-accent-primary/10" :
+                                                            isNext ? "bg-white/5" : ""
+                                                    )}>
+                                                        <div className={cn("font-bold", isUnlocked ? "text-accent-primary" : "text-text-muted")}>{rank}</div>
+                                                        <div className="flex flex-col">
+                                                            <div className="flex items-center gap-1 text-text-muted text-[10px] line-through decoration-white/30 opacity-70">
+                                                                {lvl.Cost}
+                                                            </div>
+                                                            <div className={cn("flex items-center gap-1 font-bold", isUnlocked ? "text-accent-secondary" : "text-white")}>
+                                                                <FlaskConical className="w-3 h-3" />
+                                                                {myCost}
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <div className="text-[10px] text-text-muted line-through decoration-white/30 opacity-70">
+                                                                {formatTime(lvl.Duration)}
+                                                            </div>
+                                                            <div className={cn("font-bold", isUnlocked ? "text-accent-primary" : "text-white")}>
+                                                                {formatTime(myDuration)}
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 );
                                             })}
                                         </div>
