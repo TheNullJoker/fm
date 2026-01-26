@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useProfile } from '../../context/ProfileContext';
 import { useGameData } from '../../hooks/useGameData';
 import { Card } from '../UI/Card';
+import { ConfirmModal } from '../UI/ConfirmModal';
 import { Search, Lock, Check } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -19,33 +20,16 @@ interface TechNode {
     uniqueKey: string;
 }
 
-// Helper function to format stat description
-function formatStatDescription(effect: any, currentLevel: number): string {
-    if (!effect?.Stats || effect.Stats.length === 0) return '';
-
-    const descriptions: string[] = [];
-
-    for (const stat of effect.Stats) {
-        const statType = stat.StatNode?.UniqueStat?.StatType || 'Unknown';
-        const statNature = stat.StatNode?.UniqueStat?.StatNature || 'Multiplier';
-        const baseValue = stat.Value || 0;
-        const increase = stat.ValueIncrease || 0;
-
-        const totalValue = currentLevel > 0 ? baseValue + (currentLevel - 1) * increase : 0;
-
-        let formatted = '';
-        if (statNature === 'Multiplier' || statNature === 'OneMinusMultiplier' || statNature === 'Divisor') {
-            formatted = `${statType}: ${totalValue >= 0 ? '+' : ''}${(totalValue * 100).toFixed(1)}%`;
-        } else if (statNature === 'Additive') {
-            formatted = `${statType}: +${totalValue.toFixed(0)}`;
-        } else {
-            formatted = `${statType}: ${totalValue.toFixed(2)}`;
-        }
-
-        descriptions.push(formatted);
-    }
-
-    return descriptions.join(', ');
+// Helper to generate a unique key for a stat (Type + Target)
+function getStatSignature(stat: any): string {
+    const type = stat.StatNode?.UniqueStat?.StatType || 'Unknown';
+    const nature = stat.StatNode?.UniqueStat?.StatNature || 'Multiplier';
+    const target = stat.StatNode?.StatTarget || {};
+    const cleanTarget = Object.entries(target).reduce((acc, [k, v]) => {
+        if (v !== null && v !== undefined) acc[k] = v;
+        return acc;
+    }, {} as any);
+    return `${type}|${nature}|${JSON.stringify(cleanTarget, Object.keys(cleanTarget).sort())}`;
 }
 
 // Check if a node is unlocked: requirement nodes just need level >= 1 (not max)
@@ -70,6 +54,95 @@ export function TechTreePanel() {
 
     const [activeTab, setActiveTab] = useState<TreeName>('Forge');
     const [searchTerm, setSearchTerm] = useState('');
+    const [pendingReset, setPendingReset] = useState<{ nodeId: number; count: number } | null>(null);
+
+    // Pre-calculate GLOBAL stats across all active trees
+    const globalStats = useMemo(() => {
+        if (!profile || !treeEffects || !treeMapping) return {};
+        const stats: Record<string, number> = {};
+
+        const allTrees: TreeName[] = ['Forge', 'Power', 'SkillsPetTech'];
+
+        allTrees.forEach(treeName => {
+            const userLevels = profile.techTree?.[treeName] || {};
+            // We need to look up node definitions to check Type
+            const treeMap = treeMapping.trees?.[treeName];
+            if (!treeMap?.nodes) return;
+
+            // Create a map for fast lookup? Or just iterate active nodes.
+            // Iterating active user nodes is better if efficient.
+            Object.entries(userLevels).forEach(([nodeId, lvl]) => {
+                const level = Number(lvl);
+                if (level <= 0) return;
+
+                const nodeDef = treeMap.nodes.find((n: any) => n.id === parseInt(nodeId));
+                if (!nodeDef) return;
+
+                const effect = treeEffects[nodeDef.type];
+                if (!effect?.Stats) return;
+
+                effect.Stats.forEach((stat: any) => {
+                    const sig = getStatSignature(stat);
+                    const base = stat.Value || 0;
+                    const inc = stat.ValueIncrease || 0;
+                    const total = base + ((level - 1) * inc);
+
+                    stats[sig] = (stats[sig] || 0) + total;
+                });
+            });
+        });
+
+        return stats;
+    }, [profile.techTree, treeEffects, treeMapping]);
+
+    // Helper function to format stat description with Global info
+    const formatStatDescription = (effect: any, currentLevel: number) => {
+        if (!effect?.Stats || effect.Stats.length === 0) return '';
+
+        return effect.Stats.map((stat: any) => {
+            const statType = stat.StatNode?.UniqueStat?.StatType || 'Unknown';
+            const statNature = stat.StatNode?.UniqueStat?.StatNature || 'Multiplier';
+            const baseValue = stat.Value || 0;
+            const increase = stat.ValueIncrease || 0;
+
+            const totalValue = currentLevel > 0 ? baseValue + (currentLevel - 1) * increase : 0;
+
+            // Global Total
+            const sig = getStatSignature(stat);
+            const globalTotal = globalStats[sig] || 0;
+
+            const formatVal = (val: number) => {
+                if (statNature === 'Multiplier' || statNature === 'OneMinusMultiplier' || statNature === 'Divisor') {
+                    return `${(val * 100).toFixed(1)}%`;
+                } else if (statNature === 'Additive') {
+                    return `+${val.toFixed(0)}`;
+                }
+                return val.toFixed(2);
+            };
+
+            const formatInc = (val: number) => {
+                if (statNature === 'Multiplier' || statNature === 'OneMinusMultiplier' || statNature === 'Divisor') {
+                    // Show 2 decimal places for small increments (e.g. 0.25%)
+                    return `${(val * 100).toFixed(2)}%`;
+                }
+                return val.toFixed(1);
+            }
+
+            return (
+                <div key={sig} className="flex flex-col gap-0.5 border-t border-white/5 pt-1 mt-1 first:border-0 first:pt-0 first:mt-0">
+                    <span className="font-bold text-accent-primary leading-tight">
+                        {statType}: {formatVal(totalValue)}
+                        <span className="text-text-muted text-[9px] font-normal ml-1 opacity-75">
+                            (+{formatInc(increase)}/lvl)
+                        </span>
+                    </span>
+                    <span className="text-[9px] text-text-secondary">
+                        Global Pool: <span className="text-white/80">{formatVal(globalTotal)}</span>
+                    </span>
+                </div>
+            );
+        });
+    };
 
     // Get trees from new mapping
     const treesData = useMemo(() => {
@@ -140,9 +213,60 @@ export function TechTreePanel() {
         };
     };
 
-    const handleLevelChange = (nodeId: number, level: number, max: number) => {
-        const val = Math.max(0, Math.min(level, max));
-        const newTreeLevels = { ...profile.techTree[activeTab], [nodeId]: val };
+    const getCascadeCount = (nodeId: number): number => {
+        const tree = treesData[activeTab];
+        if (!tree?.nodes) return 1;
+
+        let count = 1; // Start with the node itself
+
+
+
+        // We need to simulate the traversal on the CURRENT levels
+        // Set visited to avoid potential (though unlikely in current DAG) circular infinite loops
+        // if user data is messed up
+        const visited = new Set<number>();
+        visited.add(nodeId);
+
+        // This is a bit simpler: we just need to count how many ACTIVE nodes *would* be turned off.
+        // A node is turned off if it depends on a node being turned off.
+        // Removing any single requirement breaks the node.
+
+        const countRecursive = (pid: number) => {
+            const dependents = tree.nodes.filter((n: any) => n.requirements && n.requirements.includes(pid));
+            dependents.forEach((dep: any) => {
+                // If it's active AND not already visited
+                if (currentTreeLevels[dep.id] > 0 && !visited.has(dep.id)) {
+                    visited.add(dep.id);
+                    count++;
+                    countRecursive(dep.id);
+                }
+            });
+        };
+
+        countRecursive(nodeId);
+        return count;
+    };
+
+    const executeLevelChange = (nodeId: number, level: number) => {
+        const newTreeLevels = { ...profile.techTree[activeTab], [nodeId]: level };
+
+        // Cascade Reset logic applied to the new levels object
+        if (level === 0) {
+            const tree = treesData[activeTab];
+            if (tree && tree.nodes) {
+                const resetDependents = (parentId: number, levels: Record<number, number>) => {
+                    const dependents = tree.nodes.filter((n: any) => n.requirements && n.requirements.includes(parentId));
+                    dependents.forEach((dep: any) => {
+                        if (levels[dep.id] > 0) {
+                            levels[dep.id] = 0;
+                            resetDependents(dep.id, levels);
+                        }
+                    });
+                };
+                resetDependents(nodeId, newTreeLevels);
+            }
+        }
+
         updateProfile({
             techTree: {
                 ...profile.techTree,
@@ -150,6 +274,53 @@ export function TechTreePanel() {
             }
         });
     };
+
+    const handleLevelChange = (nodeId: number, level: number, max: number) => {
+        const val = Math.max(0, Math.min(level, max));
+
+        // If resetting to 0, check for cascade
+        if (val === 0) {
+            const count = getCascadeCount(nodeId);
+            if (count > 1) {
+                setPendingReset({ nodeId, count });
+                return;
+            }
+        }
+
+        executeLevelChange(nodeId, val);
+    };
+
+    // Calculate completion percentages
+    const completionData = useMemo(() => {
+        if (!treeMapping?.trees || !treeEffects) return {};
+        const data: Record<string, { current: number; max: number; percent: number }> = {};
+
+        Object.keys(treeMapping.trees).forEach((treeName) => {
+            const tree = treeMapping.trees[treeName];
+            const nodes = tree.nodes || [];
+            let currentTotal = 0;
+            let maxTotal = 0;
+
+            const userTree = profile.techTree?.[treeName as TreeName] || {};
+
+            nodes.forEach((node: any) => {
+                const effect = treeEffects[node.type];
+                const max = effect?.MaxLevel || 5;
+                const current = userTree[node.id] || 0;
+
+                maxTotal += max;
+                currentTotal += current;
+            });
+
+            data[treeName] = {
+                current: currentTotal,
+                max: maxTotal,
+                percent: maxTotal > 0 ? (currentTotal / maxTotal) * 100 : 0
+            };
+        });
+
+        return data;
+    }, [treeMapping, treeEffects, profile.techTree]);
 
     if (!treeMapping || !treeEffects) {
         return <Card className="p-6">Loading Tech Tree...</Card>;
@@ -165,23 +336,34 @@ export function TechTreePanel() {
             {/* Tab Filters */}
             <div className="flex flex-col sm:flex-row gap-4 mb-6">
                 <div className="flex gap-2 overflow-x-auto pb-1 custom-scrollbar">
-                    {treeCategories.map((treeKey) => (
-                        <button
-                            key={treeKey}
-                            onClick={() => {
-                                setActiveTab(treeKey);
-                                setSearchTerm('');
-                            }}
-                            className={cn(
-                                "px-4 py-2 rounded-lg font-bold text-sm transition-colors whitespace-nowrap",
-                                activeTab === treeKey
-                                    ? "bg-accent-primary text-white"
-                                    : "bg-bg-input text-text-secondary hover:bg-bg-input/80"
-                            )}
-                        >
-                            {treeKey === 'SkillsPetTech' ? 'Skills & Pets' : treeKey}
-                        </button>
-                    ))}
+                    {treeCategories.map((treeKey) => {
+                        const completion = completionData[treeKey];
+                        return (
+                            <button
+                                key={treeKey}
+                                onClick={() => {
+                                    setActiveTab(treeKey);
+                                    setSearchTerm('');
+                                }}
+                                className={cn(
+                                    "px-4 py-2 rounded-lg font-bold text-sm transition-colors whitespace-nowrap flex items-center gap-2",
+                                    activeTab === treeKey
+                                        ? "bg-accent-primary text-white"
+                                        : "bg-bg-input text-text-secondary hover:bg-bg-input/80"
+                                )}
+                            >
+                                <span>{treeKey === 'SkillsPetTech' ? 'Skills & Pets' : treeKey}</span>
+                                {completion && (
+                                    <span className={cn(
+                                        "text-xs px-1.5 py-0.5 rounded",
+                                        activeTab === treeKey ? "bg-black/20 text-white/90" : "bg-black/10 text-text-muted"
+                                    )}>
+                                        {completion.percent.toFixed(2)}%
+                                    </span>
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
                 <div className="relative flex-1">
                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-text-muted" />
@@ -324,6 +506,22 @@ export function TechTreePanel() {
                     No nodes found for "{activeTab}"
                 </div>
             )}
+
+            <ConfirmModal
+                isOpen={!!pendingReset}
+                title="Reset Node?"
+                message={`Are you sure? This will also reset ${pendingReset ? pendingReset.count - 1 : 0} dependent nodes.`}
+                confirmText="Reset"
+                cancelText="Cancel"
+                variant="danger"
+                onConfirm={() => {
+                    if (pendingReset) {
+                        executeLevelChange(pendingReset.nodeId, 0);
+                        setPendingReset(null);
+                    }
+                }}
+                onCancel={() => setPendingReset(null)}
+            />
         </Card>
     );
 }
