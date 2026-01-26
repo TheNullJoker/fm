@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useProfile } from '../../context/ProfileContext';
 import { useGameData } from '../../hooks/useGameData';
 import { useForgeUpgradeStats } from '../../hooks/useForgeCalculator';
@@ -20,7 +21,9 @@ export function MiscPanel() {
     // Usually "Level 21" means I am at 21, next upgrade is 21 -> 22.
     // Excel 21->22 is Key 21.
     // So if Level=21, pass 21.
-    const upgradeStats = useForgeUpgradeStats(profile.misc.forgeLevel);
+    const [isNextLevelStarted, setIsNextLevelStarted] = useState(false);
+    const upgradeStats = useForgeUpgradeStats(profile.misc.forgeLevel + (isNextLevelStarted ? 1 : 0));
+
 
     const updateMisc = (key: keyof typeof profile.misc, value: number) => {
         updateNestedProfile('misc', { [key]: value });
@@ -63,7 +66,10 @@ export function MiscPanel() {
                         <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => updateMisc('forgeLevel', Math.max(1, profile.misc.forgeLevel - 1))}
+                            onClick={() => {
+                                updateMisc('forgeLevel', Math.max(1, profile.misc.forgeLevel - 1));
+                                setIsNextLevelStarted(false);
+                            }}
                         >
                             <Minus className="w-4 h-4" />
                         </Button>
@@ -75,6 +81,7 @@ export function MiscPanel() {
                                 const val = parseInt(e.target.value);
                                 if (!isNaN(val) && val >= 1) {
                                     updateMisc('forgeLevel', Math.min(maxForgeLevel, val));
+                                    setIsNextLevelStarted(false);
                                 }
                             }}
                             onFocus={(e) => e.target.select()}
@@ -82,12 +89,29 @@ export function MiscPanel() {
                         <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => updateMisc('forgeLevel', Math.min(maxForgeLevel, profile.misc.forgeLevel + 1))}
+                            onClick={() => {
+                                updateMisc('forgeLevel', Math.min(maxForgeLevel, profile.misc.forgeLevel + 1));
+                                setIsNextLevelStarted(false);
+                            }}
                             disabled={profile.misc.forgeLevel >= maxForgeLevel}
                         >
                             <Plus className="w-4 h-4" />
                         </Button>
                     </div>
+
+                    {/* Next Level Toggle */}
+                    <div className="mt-2 flex items-center gap-2 justify-center">
+                        <label className="flex items-center gap-2 cursor-pointer text-xs text-text-muted select-none hover:text-text-primary transition-colors">
+                            <input
+                                type="checkbox"
+                                checked={isNextLevelStarted}
+                                onChange={(e) => setIsNextLevelStarted(e.target.checked)}
+                                className="w-3 h-3 rounded border-border bg-bg-input text-accent-primary focus:ring-0 focus:ring-offset-0"
+                            />
+                            Already started current level?
+                        </label>
+                    </div>
+
                     {/* Upgrade Cost Display */}
                     {upgradeStats ? (
                         <div className="mt-3 space-y-2 text-[10px] font-mono">
