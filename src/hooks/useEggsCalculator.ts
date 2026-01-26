@@ -261,9 +261,9 @@ export function useEggsCalculator() {
 
     }, [ownedEggs, timeLimitHours, availableSlots, hatchValuesProfile, warPoints]);
 
-    // --- Tech Tree Multiplier ---
-    const eggDungeonMultiplier = useMemo(() => {
-        if (!profile || !techTreeMapping || !techTreeLibrary) return 1;
+    // --- Tech Tree Bonus (Additive Chance) ---
+    const eggDungeonBonus = useMemo(() => {
+        if (!profile || !techTreeMapping || !techTreeLibrary) return 0;
 
         let bonus = 0;
         // Check all trees for ExtraEggChance
@@ -288,7 +288,7 @@ export function useEggsCalculator() {
             });
         });
 
-        return 1 + bonus;
+        return bonus;
     }, [profile, techTreeMapping, techTreeLibrary, treeMode]);
 
     return {
@@ -298,13 +298,13 @@ export function useEggsCalculator() {
         availableSlots, setAvailableSlots, maxSlots,
         hatchValues: hatchValuesProfile, // Default to profile values
         optimization,
-        eggDungeonMultiplier, // Export this
+        eggDungeonBonus, // Export this instead of multiplier if needed, or just for debug
 
         // Info / Manual
         selectedStage, setSelectedStage,
         dungeonKeys, setDungeonKeys,
         stageDropRates,
-        todayTotalDrops: dungeonKeys * 2 * eggDungeonMultiplier, // Export total for display
+        todayTotalDrops: dungeonKeys * (2 + eggDungeonBonus), // Corrected Formula: Base(2) + Bonus
         hatchingTimes: hatchValuesProfile, // Use real profile times now
         warPoints
     };

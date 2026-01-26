@@ -442,6 +442,13 @@ export default function ForgeCalculator() {
         const inputVal = parseFloat(inputValue) || 0;
         if (inputVal <= 0) return null;
 
+        const bracketMin = forgeStats.currentBracket?.LowerRange || 0;
+        const bracketMax = forgeStats.currentBracket?.UpperRange || 0;
+        const refLevel = forgeStats.referenceLevel;
+
+        const diffMin = bracketMin - refLevel;
+        const diffMax = bracketMax - refLevel;
+
         const freeForgeBase = (!usePlayerItems && manualBonuses['FreeForgeChance'] !== undefined)
             ? manualBonuses['FreeForgeChance']
             : bonuses.freeForgeChance;
@@ -516,6 +523,48 @@ export default function ForgeCalculator() {
 
         const freeForges = totalForges - finalHammers;
         const totalCoins = totalForges * avgCoinsPerForge;
+
+        // Accurate Total Min/Max
+        // We need to sum up (TotalForges * Chance * PriceMin) for all ages.
+        // Re-iterating is safer or we can accumulate above.
+        // Let's accumulate above.
+        // Actually, let's just do it here properly to avoid mess.
+        let totalCoinsMin = 0;
+        let totalCoinsMax = 0;
+
+        Object.entries(forgeStats.dropChanceData).forEach(([key, val]) => {
+            const chanceVal = val as number;
+            if (!key.startsWith('Age') || typeof chanceVal !== 'number' || chanceVal <= 0) return;
+            const ageIdx = parseInt(key.replace('Age', ''));
+            const ageOffset = maxAgeIdx - ageIdx;
+
+            let ageTotalCoinsMin = 0;
+            let ageTotalCoinsMax = 0;
+
+            const slots = ['Weapon', 'Helmet', 'Body', 'Glove', 'Ring', 'Necklace', 'Belt', 'Shoe'];
+            const profileSlotBonuses = (bonuses.slotBonuses || {}) as Record<string, number>;
+
+            slots.forEach(slot => {
+                let slotTechBonus = 0;
+                if (!usePlayerItems && manualBonuses[slot] !== undefined) {
+                    slotTechBonus = manualBonuses[slot];
+                } else {
+                    slotTechBonus = profileSlotBonuses[slot] || 0;
+                }
+                const baseLevel = (balancingConfig.ItemBaseMaxLevel + 1) + slotTechBonus + (bonuses.latentLevelBonus || 0) - (ageOffset * 5);
+                const baseScaling = 1.0100000000093132;
+
+                ageTotalCoinsMin += balancingConfig.SellBasePrice * Math.pow(baseScaling, baseLevel + diffMin);
+                ageTotalCoinsMax += balancingConfig.SellBasePrice * Math.pow(baseScaling, baseLevel + diffMax);
+            });
+
+            const priceMin = (ageTotalCoinsMin / 8) * (1 + forgeStats.effectiveSellPriceBonus);
+            const priceMax = (ageTotalCoinsMax / 8) * (1 + forgeStats.effectiveSellPriceBonus);
+
+            totalCoinsMin += (totalForges * chanceVal * priceMin);
+            totalCoinsMax += (totalForges * chanceVal * priceMax);
+        });
+
         const totalItems = totalForges * avgItemsPerForge;
         let totalWarPoints = 0;
 
@@ -574,7 +623,7 @@ export default function ForgeCalculator() {
         });
         ages.reverse();
 
-        return { finalHammers, totalForges, freeForges, totalCoins, totalItems, totalWarPoints, ages };
+        return { finalHammers, totalForges, freeForges, totalCoins, totalCoinsMin, totalCoinsMax, totalItems, totalWarPoints, ages };
     }, [inputValue, mode, forgeStats, bonuses, warPointsPerAge, brackets, balancingConfig, usePlayerItems, manualBonuses]);
 
     /* getSlotIconIndex removed */
@@ -688,6 +737,20 @@ export default function ForgeCalculator() {
         <div className="flex flex-col">
             <div className="text-2xl lg:text-3xl font-black text-white">{formatNumber(val)}</div>
             <div className="text-xs text-white/50 font-mono">({val.toLocaleString(undefined, { maximumFractionDigits: 0 })})</div>
+        </div>
+    );
+
+    // Helper for Range Display
+    const renderPriceRange = (min: number, max: number) => (
+        <div className="flex flex-col">
+            <div className="text-xl lg:text-2xl font-black text-white flex items-center gap-1">
+                <span>{formatNumber(min)}</span>
+                <span className="text-white/50">-</span>
+                <span>{formatNumber(max)}</span>
+            </div>
+            <div className="text-[10px] text-white/50 font-mono">
+                {formatNumber((min + max) / 2)} (Avg)
+            </div>
         </div>
     );
 
@@ -865,16 +928,17 @@ export default function ForgeCalculator() {
                 <div className="space-y-6">
                     {/* Summary Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div className="card p-6 bg-gradient-to-br from-yellow-500/10 to-transparent border-yellow-500/20 flex flex-col justify-between h-32 relative overflow-hidden group">
+                        <div className="card p-6 bg-gradient-to-br from-yellow-500/10 to-transparent border-yellow-500/20 flex flex-col justify-between relative overflow-hidden group">
                             <div className="absolute right-0 top-0 p-10 bg-yellow-500/5 rounded-full blur-2xl group-hover:bg-yellow-500/10 transition-colors" />
                             <div className="relative z-10">
                                 <div className="text-sm font-bold text-yellow-500 uppercase tracking-wider mb-1">Total Gold Value</div>
-                                {renderPriceWithPrecision(results.totalCoins)}
+                                {/* Show Range instead of Single Value */}
+                                {renderPriceRange(results.totalCoinsMin, results.totalCoinsMax)}
                             </div>
                             <img src="./Texture2D/CoinIcon.png" alt="Gold" className="w-10 h-10 object-contain absolute right-4 bottom-4 opacity-50" />
                         </div>
 
-                        <div className="card p-6 bg-gradient-to-br from-purple-500/10 to-transparent border-purple-500/20 flex flex-col justify-between h-32 relative overflow-hidden group">
+                        <div className="card p-6 bg-gradient-to-br from-purple-500/10 to-transparent border-purple-500/20 flex flex-col justify-between relative overflow-hidden group">
                             <div className="absolute right-0 top-0 p-10 bg-purple-500/5 rounded-full blur-2xl group-hover:bg-purple-500/10 transition-colors" />
                             <div className="relative z-10">
                                 <div className="text-sm font-bold text-purple-500 uppercase tracking-wider mb-1">Total Items Found</div>
@@ -883,7 +947,7 @@ export default function ForgeCalculator() {
                             <GameIcon name="chest" className="text-purple-500/20 w-10 h-10 absolute right-4 bottom-4" />
                         </div>
 
-                        <div className="card p-6 bg-gradient-to-br from-red-500/10 to-transparent border-red-500/20 flex flex-col justify-between h-32 relative overflow-hidden group">
+                        <div className="card p-6 bg-gradient-to-br from-red-500/10 to-transparent border-red-500/20 flex flex-col justify-between relative overflow-hidden group">
                             <div className="absolute right-0 top-0 p-10 bg-red-500/5 rounded-full blur-2xl group-hover:bg-red-500/10 transition-colors" />
                             <div className="relative z-10">
                                 <div className="text-sm font-bold text-red-500 uppercase tracking-wider mb-1">Total War Points</div>
@@ -892,7 +956,7 @@ export default function ForgeCalculator() {
                             <img src="./Texture2D/TechTreePower.png" alt="War Points" className="w-10 h-10 object-contain absolute right-4 bottom-4 opacity-50" />
                         </div>
 
-                        <div className="card p-6 bg-gradient-to-br from-blue-500/10 to-transparent border-blue-500/20 flex flex-col justify-between h-32 relative overflow-hidden group">
+                        <div className="card p-6 bg-gradient-to-br from-blue-500/10 to-transparent border-blue-500/20 flex flex-col justify-between relative overflow-hidden group">
                             <div className="absolute right-0 top-0 p-10 bg-blue-500/5 rounded-full blur-2xl group-hover:bg-blue-500/10 transition-colors" />
                             <div className="relative z-10">
                                 <div className="text-sm font-bold text-blue-500 uppercase tracking-wider mb-1">Total Actions</div>
@@ -901,6 +965,10 @@ export default function ForgeCalculator() {
                                     <span>From {formatNumber(results.finalHammers)}</span>
                                     <span className="opacity-50">({Math.floor(results.finalHammers).toLocaleString()})</span>
                                     <span>Hammers</span>
+                                </div>
+                                <div className="text-xs text-blue-300 mb-1">
+                                    <span className="font-bold">+{formatNumber(results.freeForges)}</span>
+                                    <span className="opacity-70"> Free Forges ({Math.floor(results.freeForges).toLocaleString()})</span>
                                 </div>
                             </div>
                             <img src="./Texture2D/Hammer.png" alt="Hammer" className="w-10 h-10 object-contain absolute right-4 bottom-4 opacity-50" />
