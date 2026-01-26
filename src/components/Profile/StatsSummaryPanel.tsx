@@ -104,7 +104,7 @@ export function StatsSummaryPanel() {
     // Formula: Damage × AttackSpeed × CritMultiplier × DoubleDamageMultiplier
     const critMultiplier = 1 + stats.criticalChance * (stats.criticalDamage - 1);
     const doubleDmgMultiplier = 1 + stats.doubleDamageChance;
-    const weaponDps = stats.totalDamage * stats.attackSpeedMultiplier * critMultiplier * doubleDmgMultiplier;
+    const weaponDps = (stats.totalDamage * stats.attackSpeedMultiplier * critMultiplier * doubleDmgMultiplier) / (stats.weaponAttackDuration || 1);
 
     // Skill DPS (already fully calculated in statEngine including crits/multipliers)
     // Total Effective DPS = Weapon DPS + Skill DPS
