@@ -8,23 +8,30 @@ import { cn } from '../../lib/utils';
 import { formatPercent, formatMultiplier, formatCompactNumber } from '../../utils/statsCalculator';
 import { useGlobalStats } from '../../hooks/useGlobalStats';
 import { useTreeModifiers } from '../../hooks/useCalculatedStats';
+import { getStatName } from '../../utils/statNames';
 
 interface StatRowProps {
     icon: React.ReactNode;
     label: string;
     value: string | number;
     subValue?: string;
+    count?: number;
     color?: string;
 }
 
-function StatRow({ icon, label, value, subValue, color = 'text-accent-primary' }: StatRowProps) {
+function StatRow({ icon, label, value, subValue, count, color = 'text-accent-primary' }: StatRowProps) {
     return (
         <div className="flex flex-col justify-between p-2 bg-bg-input/30 rounded-lg border border-border/30 hover:bg-bg-input/50 transition-colors min-h-[4.5rem]">
             <div className="flex items-center gap-2 w-full">
                 <div className={cn("w-6 h-6 rounded-lg flex items-center justify-center bg-bg-secondary shrink-0", color)}>
                     {icon}
                 </div>
-                <div className="text-xs font-medium text-text-primary leading-tight break-words">{label}</div>
+                <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium text-text-primary leading-tight break-words">{label}</div>
+                    {count !== undefined && count > 0 && (
+                        <div className="text-[9px] text-text-muted">({count} Stats)</div>
+                    )}
+                </div>
             </div>
             <div className="mt-2 w-full text-right">
                 <div className={cn("font-mono font-bold text-sm", color)}>
@@ -177,26 +184,30 @@ export function StatsSummaryPanel() {
                     <div className="grid grid-cols-[repeat(auto-fit,minmax(100px,1fr))] gap-2">
                         <StatRow
                             icon={<Star className="w-4 h-4" />}
-                            label="Crit Chance"
+                            label={getStatName('CriticalChance')}
                             value={formatPercent(stats.criticalChance)}
+                            count={stats.statCounts?.['CriticalChance']}
                             color="text-yellow-400"
                         />
                         <StatRow
                             icon={<TrendingUp className="w-4 h-4" />}
-                            label="Crit Damage"
+                            label={getStatName('CriticalMulti')}
                             value={`${stats.criticalDamage.toFixed(2)}x`}
+                            count={stats.statCounts?.['CriticalMulti']}
                             color="text-yellow-500"
                         />
                         <StatRow
                             icon={<Shield className="w-4 h-4" />}
-                            label="Block Chance"
+                            label={getStatName('BlockChance')}
                             value={formatPercent(stats.blockChance)}
+                            count={stats.statCounts?.['BlockChance']}
                             color="text-blue-400"
                         />
                         <StatRow
                             icon={<Zap className="w-4 h-4" />}
-                            label="Double DMG"
+                            label={getStatName('DoubleDamageChance')}
                             value={formatPercent(stats.doubleDamageChance)}
+                            count={stats.statCounts?.['DoubleDamageChance']}
                             color="text-purple-400"
                         />
                         <StatRow
@@ -225,56 +236,65 @@ export function StatsSummaryPanel() {
                         />
                         <StatRow
                             icon={<Gauge className="w-4 h-4" />}
-                            label="Attack Speed"
+                            label={getStatName('AttackSpeed')}
                             value={formatMultiplier(stats.attackSpeedMultiplier)}
+                            count={stats.statCounts?.['AttackSpeed']}
                             color="text-cyan-400"
                         />
                         <StatRow
                             icon={<Heart className="w-4 h-4" />}
-                            label="Lifesteal"
+                            label={getStatName('LifeSteal')}
                             value={formatPercent(stats.lifeSteal)}
+                            count={stats.statCounts?.['LifeSteal']}
                             color="text-red-400"
                         />
                         <StatRow
                             icon={<TrendingUp className="w-4 h-4" />}
-                            label="Health Regen"
+                            label={getStatName('HealthRegen')}
                             value={formatPercent(stats.healthRegen)}
+                            count={stats.statCounts?.['HealthRegen']}
                             color="text-emerald-400"
                         />
                         <StatRow
                             icon={<Clock className="w-4 h-4" />}
-                            label="Skill CD"
+                            label={getStatName('SkillCooldownMulti')}
                             value={`-${formatPercent(stats.skillCooldownReduction)}`}
+                            count={stats.statCounts?.['SkillCooldownMulti']}
                             color="text-indigo-400"
                         />
                         <StatRow
                             icon={<Swords className="w-4 h-4" />}
-                            label="Skill DMG"
+                            label={getStatName('SkillDamageMulti')}
                             value={formatMultiplier(stats.skillDamageMultiplier)}
+                            count={stats.statCounts?.['SkillDamageMulti']}
                             color="text-blue-400"
                         />
                         <StatRow
                             icon={<Swords className="w-4 h-4" />}
-                            label="Melee DMG"
+                            label={getStatName('MeleeDamageMulti')}
                             value={formatPercent(stats.meleeDamageMultiplier)}
+                            count={stats.statCounts?.['MeleeDamageMulti']}
                             color="text-amber-400"
                         />
                         <StatRow
                             icon={<Crosshair className="w-4 h-4" />}
-                            label="Range DMG"
+                            label={getStatName('RangedDamageMulti')}
                             value={formatPercent(stats.rangedDamageMultiplier)}
+                            count={stats.statCounts?.['RangedDamageMulti']}
                             color="text-sky-400"
                         />
                         <StatRow
                             icon={<Swords className="w-4 h-4" />}
-                            label="Damage Multi"
+                            label={getStatName('DamageMulti')}
                             value={formatPercent(stats.secondaryDamageMulti)}
+                            count={stats.statCounts?.['DamageMulti']}
                             color="text-red-400"
                         />
                         <StatRow
                             icon={<Heart className="w-4 h-4" />}
-                            label="Health Multi"
+                            label={getStatName('HealthMulti')}
                             value={formatPercent(stats.secondaryHealthMulti)}
+                            count={stats.statCounts?.['HealthMulti']}
                             color="text-green-400"
                         />
                     </div>

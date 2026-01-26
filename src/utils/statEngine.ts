@@ -100,6 +100,9 @@ export interface AggregatedStats {
     power: number;
     powerDamageMultiplier: number;
     maxItemLevels: Record<string, number>;
+
+    // Source tracking
+    statCounts: Record<string, number>;
 }
 
 export type StatMap = Record<string, any>;
@@ -161,7 +164,8 @@ export const DEFAULT_STATS: AggregatedStats = {
         'Necklace': 99,
         'Ring': 99,
         'Shoe': 99,
-    }
+    },
+    statCounts: {}
 };
 
 export interface LibraryData {
@@ -368,6 +372,7 @@ export class StatEngine {
 
         // Reset max levels
         this.maxLevelBonuses = { 'Weapon': 0, 'Helmet': 0, 'Body': 0, 'Gloves': 0, 'Belt': 0, 'Necklace': 0, 'Ring': 0, 'Shoe': 0 };
+        this.stats.statCounts = {};
     }
 
     private parseBaseStats(): BasePlayerStats {
@@ -638,12 +643,20 @@ export class StatEngine {
         this.debugLogs.push(`Mount final: Damage=${(this.mountDamageMulti * 100).toFixed(1)}%, Health=${(this.mountHealthMulti * 100).toFixed(1)}%`);
     }
 
+    private incrementStatCount(statId: string) {
+        this.stats.statCounts[statId] = (this.stats.statCounts[statId] || 0) + 1;
+    }
+
     /**
      * Collect ALL Secondary Stats from items, pets, mount (same as Verify.tsx)
      * These are stored separately and applied in finalizeCalculation
      */
     private collectAllSecondaryStats() {
         const collectSecondary = (statId: string, rawValue: number) => {
+            if (rawValue > 0) {
+                this.incrementStatCount(statId);
+            }
+
             // Game displays values rounded to 2 decimals (e.g., 11.2%), so we match that precision
             // Round to 4 decimals to allow finer precision (e.g. 4.49%)
             const rounded = Math.round(rawValue * 10000) / 10000;
@@ -824,6 +837,17 @@ export class StatEngine {
 
     private applyStat(stat: StatEntry) {
         const { statType, statNature, value, target } = stat;
+
+        // Count sources
+        let countKey = statType;
+        if (statType === 'Damage' && statNature !== 'Additive' && !target?.includes('StatTarget')) countKey = 'DamageMulti';
+        if (statType === 'Health' && statNature !== 'Additive' && !target?.includes('StatTarget')) countKey = 'HealthMulti';
+        if (statType === 'CriticalDamage') countKey = 'CriticalMulti';
+
+        // Check significant value
+        if (Math.abs(value) > 0.0001) {
+            this.incrementStatCount(countKey);
+        }
 
         // Log interesting stats (Damage, Health)
         if (statType === 'Damage' || statType === 'Health' || statType.includes('Damage') || statType.includes('Health')) {
