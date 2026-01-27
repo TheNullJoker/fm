@@ -7,7 +7,7 @@ import { TrendingUp, Info } from 'lucide-react';
 import { GameIcon } from '../components/UI/GameIcon';
 import { SpriteIcon } from '../components/UI/SpriteIcon';
 import { formatNumber } from '../utils/format';
-import { cn } from '../lib/utils';
+
 
 export default function Offline() {
     const { profile } = useProfile();
