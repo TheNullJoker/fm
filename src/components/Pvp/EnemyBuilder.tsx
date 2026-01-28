@@ -292,7 +292,10 @@ export function EnemyBuilder() {
                 const p1Stats = aggregatedStatsToPvpStats(
                     globalStats,
                     profile.skills.equipped,
-                    skillLibrary
+                    skillLibrary,
+                    weaponLibrary,
+                    profile.items.Weapon,
+                    pvpBaseConfig
                 );
 
                 // 2. Convert Player 2 (Enemy) Stats
@@ -332,7 +335,14 @@ export function EnemyBuilder() {
     const getBattleStats = (): { p1: PvpPlayerStats, p2: PvpPlayerStats } | null => {
         if (!globalStats || !skillLibrary || !weaponLibrary || !pvpBaseConfig || !mountUpgradeLibrary) return null;
         try {
-            const p1 = aggregatedStatsToPvpStats(globalStats, profile.skills.equipped, skillLibrary, pvpBaseConfig);
+            const p1 = aggregatedStatsToPvpStats(
+                globalStats,
+                profile.skills.equipped,
+                skillLibrary,
+                weaponLibrary,
+                profile.items.Weapon,
+                pvpBaseConfig
+            );
             const p2 = enemyConfigToPvpStats(
                 enemy,
                 weaponLibrary,

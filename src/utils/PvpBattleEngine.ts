@@ -1132,6 +1132,8 @@ export function aggregatedStatsToPvpStats(
     stats: any,
     equippedSkills: any[],
     skillLibrary: any,
+    weaponLibrary?: any,
+    weaponSlot?: any,
     pvpBaseConfig?: any
 ): PvpPlayerStats {
     const skills: PvpSkillConfig[] = equippedSkills.map(skill => {
@@ -1221,13 +1223,52 @@ export function aggregatedStatsToPvpStats(
     const pvpTotalHp = pvpCombinedHp * (1 + pvpMountHealthMulti + secHealthMulti);
 
 
+    // Determine Weapon Info
+    let weaponInfo = undefined;
+    if (weaponLibrary && weaponSlot) {
+        // Helper to get weapon info from library
+        const findWeapon = (item: any) => {
+            // WeaponLibrary uses complex keys: "{'Age': 0, 'Type': 'Weapon', 'Idx': 0}"
+            // item (ItemSlot) has age and idx
+            if (item.age !== undefined && item.idx !== undefined) {
+                const key = `{'Age': ${item.age}, 'Type': 'Weapon', 'Idx': ${item.idx}}`;
+                if (weaponLibrary[key]) return weaponLibrary[key];
+            }
+
+            // Fallback: try by ID if it exists (legacy or different format)
+            if (item.id && weaponLibrary[item.id]) return weaponLibrary[item.id];
+
+            return null;
+        };
+
+        const wData = findWeapon(weaponSlot);
+        if (wData) {
+            const windup = wData.WindupTime !== undefined ? wData.WindupTime : 0.5;
+            const duration = wData.AttackDuration !== undefined ? wData.AttackDuration : 1.5;
+            const range = wData.AttackRange !== undefined ? wData.AttackRange : 0.3;
+
+            weaponInfo = {
+                Age: wData.ItemId?.Age || wData.Age || 0,
+                Idx: wData.ItemId?.Idx || wData.Idx || 0,
+                Type: wData.ItemId?.Type || wData.Type || 'Melee',
+                IsRanged: (range > 1.0) ? 1 : 0,
+                AttackRange: range,
+                AttackDuration: duration,
+                WindupTime: windup,
+                ProjectileId: wData.ProjectileId // Capture Projectile ID if needed
+            };
+        }
+    }
 
     return {
         hp: Math.round(Math.max(1, pvpTotalHp)),
         damage: stats.totalDamage, // TODO: Apply similar logic for Damage if needed
         attackSpeed: stats.attackSpeedMultiplier || 1,
-        isRanged: stats.isRangedWeapon,
-        projectileSpeed: stats.projectileSpeed,
+        weaponInfo,
+
+        isRanged: weaponInfo ? (weaponInfo.AttackRange ?? 0) > 1.0 : stats.isRangedWeapon,
+        projectileSpeed: stats.projectileSpeed, // Note: WeaponLibrary doesn't seem to have ProjectileSpeed, relying on stats or default
+
 
         critChance: stats.criticalChance || 0,
         critMulti: stats.criticalDamage || 1.5,
