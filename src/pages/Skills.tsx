@@ -11,13 +11,14 @@ export default function Skills() {
     const { profile } = useProfile();
     const { data: skillLibrary, loading: l1 } = useGameData<any>('SkillLibrary.json');
     const { data: skillUpgrades, loading: l1b } = useGameData<any>('SkillUpgradeLibrary.json');
+    const { data: passiveLibrary, loading: l1c } = useGameData<any>('SkillPassiveLibrary.json');
     const { data: spriteMapping, loading: l2 } = useGameData<any>('ManualSpriteMapping.json');
 
     const [searchTerm, setSearchTerm] = useState('');
     const [filterRarity, setFilterRarity] = useState<string | null>(null);
     const [globalLevel, setGlobalLevel] = useState(50);
 
-    const loading = l1 || l1b || l2;
+    const loading = l1 || l1b || l1c || l2;
     const skillsConfig = spriteMapping?.skills;
 
     // Build sprite lookup
@@ -209,6 +210,40 @@ export default function Skills() {
                                         <span className="font-mono font-bold ml-auto">{skill.cooldown}s</span>
                                     </div>
                                 </div>
+
+                                {/* Passive Stats */}
+                                {passiveLibrary && passiveLibrary[skill.rarity] && (
+                                    <div className="grid grid-cols-1 gap-1 mb-3">
+                                        {(() => {
+                                            const passiveData = passiveLibrary[skill.rarity];
+                                            if (!passiveData?.LevelStats) return null;
+
+                                            const pLevelIdx = Math.min(Math.max(1, globalLevel) - 1, passiveData.LevelStats.length - 1);
+                                            const currentStats = passiveData.LevelStats[pLevelIdx]?.Stats || [];
+
+                                            return currentStats.map((stat: any, idx: number) => {
+                                                const statType = stat.StatNode?.UniqueStat?.StatType || "Unknown";
+                                                const value = stat.Value || 0;
+                                                // Check for Additive/Multiplicative if needed, usually additive flats here
+                                                const isPercent = false;
+
+                                                // Only show positive values
+                                                if (value <= 0) return null;
+
+                                                let valueColor = "text-accent-secondary";
+                                                if (statType === "Health") valueColor = "text-green-400";
+                                                if (statType === "Damage") valueColor = "text-red-400";
+
+                                                return (
+                                                    <div key={idx} className="bg-bg-input/30 px-2 py-1.5 rounded flex items-center justify-between text-[11px] border border-white/5">
+                                                        <span className="text-text-muted uppercase font-bold tracking-wider">{statType} (Passive)</span>
+                                                        <span className={cn("font-mono font-bold", valueColor)}>+{formatNumber(value)}{isPercent ? '%' : ''}</span>
+                                                    </div>
+                                                );
+                                            });
+                                        })()}
+                                    </div>
+                                )}
 
                                 {/* Stats at current level */}
                                 <div className="grid grid-cols-2 gap-2 mt-auto">
