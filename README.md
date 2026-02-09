@@ -58,6 +58,16 @@ Maintained by **arleas**. Built on original work by **1vcian**.
 
 Special thanks to **Timbo** for his invaluable contribution to debugging, technical development, and community support that helped shape this tool into what it is today.
 
+## 🔄 Sync With Upstream
+If you want to pull changes from the original repository:
+
+```bash
+git fetch upstream
+git checkout main
+git rebase upstream/main
+git push origin main
+```
+
 ---
 
 *Disclaimer: This project is not affiliated with the official developers of Forge Master. It is a community-driven initiative.*
