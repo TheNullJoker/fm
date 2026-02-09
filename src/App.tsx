@@ -28,6 +28,7 @@ import ForgeCalculator from './pages/Calculators/ForgeCalculator';
 import MountCalculator from './pages/Calculators/MountCalculator';
 import SkillCalculator from './pages/Calculators/SkillCalculator';
 import TreeCalculator from './pages/Calculators/TreeCalculator';
+import StatCalculator from './pages/Calculators/StatCalculator';
 import Verify from './pages/Verify';
 import ForgeWiki from './pages/ForgeWiki';
 
@@ -65,6 +66,7 @@ function App() {
                                 <Route path="calculators/mounts" element={<MountCalculator />} />
                                 <Route path="calculators/skills" element={<SkillCalculator />} />
                                 <Route path="calculators/tree" element={<TreeCalculator />} />
+                                <Route path="calculators/stats" element={<StatCalculator />} />
                                 <Route path="wiki/forge" element={<ForgeWiki />} />
                                 <Route path="*" element={<Home />} />
                             </Route>

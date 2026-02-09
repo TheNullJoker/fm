@@ -5,9 +5,8 @@
 A comprehensive, **100% Fanmade** toolkit and encyclopedia for Forge Master players. This project provides real-time calculators, a persistent profile system, and an exhaustive database sourced directly from the game's official configuration files.
 
 ## 🚀 Project Links
-- **Live Tool**: [1vcian.me/fm](https://1vcian.me)
-- **GitHub Repository**: [1vcian/fm](https://github.com/1vcian/fm)
-- **Support the Project**: [Buy Me a Coffee](https://www.buymeacoffee.com/1vcian)
+- **Live Tool**: [GitHub Profile](https://github.com/TheNullJoker)
+- **GitHub Repository**: [TheNullJoker](https://github.com/TheNullJoker)
 
 ---
 
@@ -55,7 +54,7 @@ The application is divided into four main sections within the sidebar, each desi
 - **Mobile Optimized**: Every page is designed with a "Mobile-First" approach, featuring responsive headers, detailed overlays, and touch-friendly controls.
 
 ## 🤝 Credits & Contribution
-Developed with ❤️ by **1vcian**.
+Maintained by **arleas**. Built on original work by **1vcian**.
 
 Special thanks to **Timbo** for his invaluable contribution to debugging, technical development, and community support that helped shape this tool into what it is today.
 

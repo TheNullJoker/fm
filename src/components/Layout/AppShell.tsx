@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
-import { Coffee, ExternalLink, Github } from 'lucide-react';
+import { ExternalLink, Github } from 'lucide-react';
 import { useGameDataContext } from '../../context/GameDataContext';
 
 export default function AppShell() {
@@ -29,22 +29,24 @@ export default function AppShell() {
                             <p>Forge Master Calculator &copy; {new Date().getFullYear()}</p>
                             <div className="flex items-center justify-center gap-4">
                                 <a
-                                    href="https://1vcian.me"
+                                    href="https://github.com/TheNullJoker"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="flex items-center gap-1.5 text-accent-primary hover:text-accent-secondary transition-colors"
                                 >
-                                    Visit My Website <ExternalLink className="w-3 h-3" />
+                                    Visit My Profile <ExternalLink className="w-3 h-3" />
                                 </a>
                                 <span className="text-border">|</span>
                                 <a
-                                    href="https://github.com/1vcian/fm"
+                                    href="https://github.com/TheNullJoker"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="flex items-center gap-1.5 text-text-secondary hover:text-white transition-colors"
                                 >
                                     GitHub <Github className="w-3 h-3" />
                                 </a>
+                                <span className="text-border">|</span>
+                                <span className="text-xs text-text-muted">Built on original work by 1vcian</span>
                             </div>
                             {versions.length > 0 && (
                                 <div className="mt-2 flex items-center gap-2 text-xs">
@@ -66,16 +68,7 @@ export default function AppShell() {
 
 
 
-                {/* Buy Me A Coffee - Fixed Floating Button */}
-                <a
-                    href="https://www.buymeacoffee.com/1vcian"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="fixed bottom-6 right-6 z-50 bg-[#FFDD00] text-black font-bold py-2 px-3 md:py-3 md:px-4 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center gap-2 animate-bounce-slow"
-                >
-                    <Coffee className="w-5 h-5" />
-                    <span className="font-bold">Buy me a coffee</span>
-                </a>
+                
             </div>
         </div>
     );

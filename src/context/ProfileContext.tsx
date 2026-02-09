@@ -5,7 +5,7 @@ import LZString from 'lz-string';
 const STORAGE_KEY = 'forgeMaster_profiles';
 const ACTIVE_PROFILE_KEY = 'forgeMaster_activeProfileId';
 
-interface ProfileContextType {
+export interface ProfileContextType {
     // Current profile
     profile: UserProfile;
     updateProfile: (updates: Partial<UserProfile>) => void;
@@ -39,7 +39,7 @@ interface ProfileContextType {
     isNameTaken: (name: string, excludeId?: string) => boolean;
 }
 
-const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
+export const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 
 // Initialize profiles synchronously from localStorage
 const getInitialProfiles = (): { profiles: UserProfile[], activeId: string } => {

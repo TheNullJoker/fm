@@ -1,5 +1,5 @@
 import { Card } from '../components/UI/Card';
-import { HelpCircle, Heart, Zap, Coffee, Globe, ExternalLink, MessageCircle } from 'lucide-react';
+import { HelpCircle, Heart, Globe, ExternalLink, MessageCircle } from 'lucide-react';
 
 export default function FAQ() {
     return (
@@ -26,16 +26,16 @@ export default function FAQ() {
                             <div className="flex-1 space-y-3">
                                 <p className="text-sm text-text-primary leading-relaxed">
                                     This is a <strong>100% Fanmade tool</strong> created to assist the Forge Master community.
-                                    The project was entirely developed by <span className="text-accent-secondary font-bold italic">1vcian</span>.
+                                    The project is maintained by <span className="text-accent-secondary font-bold italic">arleas</span> and built on original work by <span className="text-text-primary font-bold italic">1vcian</span>.
                                 </p>
                                 <div className="flex flex-wrap gap-3">
                                     <a
-                                        href="https://1vcian.me"
+                                        href="https://github.com/TheNullJoker"
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="flex items-center gap-2 px-4 py-2 rounded-xl bg-bg-input border border-border hover:border-accent-primary transition-all text-xs font-bold"
                                     >
-                                        <Globe className="w-4 h-4" /> 1vcian.me
+                                        <Globe className="w-4 h-4" /> GitHub Profile
                                     </a>
                                     <a
                                         href="https://discord.com/invite/fmaster"
@@ -52,7 +52,7 @@ export default function FAQ() {
                                         <HelpCircle className="w-4 h-4" /> BUG & FEEDBACK
                                     </a>
                                     <a
-                                        href="https://github.com/1vcian/fm"
+                                        href="https://github.com/TheNullJoker"
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="flex items-center gap-2 px-4 py-2 rounded-xl bg-bg-input border border-border hover:border-accent-primary transition-all text-xs font-bold text-text-muted hover:text-text-primary"
@@ -70,22 +70,7 @@ export default function FAQ() {
                             </div>
                         </div>
 
-                        <div className="pt-4 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4">
-                            <div className="flex items-center gap-2 text-sm font-medium text-text-muted">
-                                <Zap className="w-4 h-4 text-yellow-500" />
-                                Like the tool? Consider supporting the project!
-                            </div>
-                            <a
-                                href="https://www.buymeacoffee.com/1vcian"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#FFDD00] text-black font-black text-sm hover:scale-105 active:scale-95 transition-all shadow-lg"
-                            >
-                                <Coffee className="w-5 h-5 fill-current" />
-                                BUY ME A COFFEE
-                                <ExternalLink className="w-4 h-4" />
-                            </a>
-                        </div>
+                        
                     </div>
                 </Card>
             </div>

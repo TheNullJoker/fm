@@ -11,7 +11,7 @@ interface ColorStop {
 }
 
 export default function Colors() {
-    const [text, setText] = useState('1vcian.me/fm');
+    const [text, setText] = useState('github.com/TheNullJoker');
     const [startColor, setStartColor] = useState('#ff0000');
     const [endColor, setEndColor] = useState('#FFD700');
     const [middleColors, setMiddleColors] = useState<ColorStop[]>([]);

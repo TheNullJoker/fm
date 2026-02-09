@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import {
     Star, Egg, Key, Shirt, Cat,
-    Cpu, Swords, Shield, Lock, Coins, Palette, FileJson, HelpCircle, Github, TrendingUp, Hammer, Coffee
+    Cpu, Swords, Shield, Lock, Coins, Palette, FileJson, HelpCircle, Github, TrendingUp, Hammer
 } from 'lucide-react';
 import { GameIcon } from '../UI/GameIcon';
 import { useProfile } from '../../context/ProfileContext';
@@ -37,6 +37,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 { name: 'Eggs', path: '/eggs', icon: Egg },
                 { name: 'Skills', path: '/calculators/skills', icon: Star },
                 { name: 'Mounts', path: '/calculators/mounts', icon: Star },
+                { name: 'Stat Optimizer', path: '/calculators/stats', icon: TrendingUp },
             ]
         },
         {
@@ -58,15 +59,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 { name: 'Unlocks', path: '/unlocks', icon: Lock },
                 { name: 'Configs', path: '/configs', icon: FileJson },
                 { name: 'FAQ', path: '/faq', icon: HelpCircle },
-                { name: 'GitHub', path: 'https://github.com/1vcian/fm', icon: Github, external: true },
+                { name: 'GitHub', path: 'https://github.com/TheNullJoker', icon: Github, external: true },
             ]
         },
-        {
-            title: 'Support',
-            items: [
-                { name: 'Buy me a coffee', path: 'https://www.buymeacoffee.com/1vcian', icon: Coffee, external: true },
-            ]
-        }
+        
     ];
 
     return (
@@ -151,10 +147,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <div className="p-4 border-t border-border space-y-2">
                     <div className="text-xs text-text-muted text-center flex items-center justify-center gap-2">
                         <Github size={12} className="opacity-50" />
-                        <a href="https://github.com/1vcian/fm" target="_blank" rel="noopener noreferrer" className="hover:text-accent-primary transition-colors">Source Code</a>
+                        <a href="https://github.com/TheNullJoker" target="_blank" rel="noopener noreferrer" className="hover:text-accent-primary transition-colors">Source Code</a>
                     </div>
                     <div className="text-xs text-text-muted text-center">
-                        v1.0.0 • by <a href="https://1vcian.me" target="_blank" rel="noopener noreferrer" className="hover:text-accent-primary transition-colors">1vcian</a>
+                        v1.0.0 • by <a href="https://github.com/TheNullJoker" target="_blank" rel="noopener noreferrer" className="hover:text-accent-primary transition-colors">arleas</a>
                     </div>
                 </div>
             </aside>

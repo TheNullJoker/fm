@@ -108,13 +108,9 @@ export function StatsSummaryPanel() {
 
     const critMultiplier = 1 + cappedCritChance * (stats.criticalDamage - 1);
     const doubleDmgMultiplier = 1 + cappedDoubleDamageChance;
-    const modifiedAttackDuration = (stats.weaponAttackDuration) / stats.attackSpeedMultiplier;
-
-    // Tempo totale per attacco
-    const totalAttackTime = modifiedAttackDuration;
-
-    // Attacchi al secondo
-    const attacksPerSecond = 1 / totalAttackTime;
+    const baseCycleTime = stats.weaponWindupTime + stats.weaponAttackDuration;
+    const modifiedCycleTime = baseCycleTime / stats.attackSpeedMultiplier;
+    const attacksPerSecond = modifiedCycleTime > 0 ? 1 / modifiedCycleTime : 0;
 
     // DPS finale
     const weaponDps = stats.totalDamage * attacksPerSecond * critMultiplier * doubleDmgMultiplier;
@@ -434,7 +430,7 @@ export function StatsSummaryPanel() {
                             </div>
 
                             <div className="flex justify-between">
-                                <span>APS (1 / {totalAttackTime.toFixed(2)}s)</span>
+                                <span>APS (1 / {modifiedCycleTime.toFixed(2)}s)</span>
                                 <span className="text-text-primary">{attacksPerSecond.toFixed(2)}/s</span>
                             </div>
 
