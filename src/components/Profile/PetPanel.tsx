@@ -13,7 +13,7 @@ import { useTreeModifiers } from '../../hooks/useCalculatedStats';
 import { formatSecondaryStat } from '../../utils/statNames';
 import { InputModal } from '../UI/InputModal';
 
-export function PetPanel() {
+export function PetPanel({ highlightedPetIndex }: { highlightedPetIndex?: number | null }) {
     const { profile, updateNestedProfile } = useProfile();
     const activePets = profile.pets.active;
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -189,6 +189,7 @@ export function PetPanel() {
                     const petType = getPetType(pet);
                     const typeMultipliers = petBalancing?.[petType] || { DamageMultiplier: 1, HealthMultiplier: 1 };
                     const spriteInfo = getSpriteInfo(pet.id, pet.rarity);
+                    const isHighlighted = highlightedPetIndex === idx;
 
                     const isSaved = (profile.pets.savedBuilds || []).some(s =>
                         s.id === pet.id && s.rarity === pet.rarity && s.level === pet.level &&
@@ -196,7 +197,13 @@ export function PetPanel() {
                     );
 
                     return (
-                        <div key={idx} className="p-3 bg-bg-secondary rounded-lg border border-border">
+                        <div
+                            key={idx}
+                            className={cn(
+                                "p-3 bg-bg-secondary rounded-lg border border-border",
+                                isHighlighted && "border-accent-primary ring-2 ring-accent-primary/50"
+                            )}
+                        >
                             {/* Header: Icon, Name, Type */}
                             <div className="flex items-center gap-3 mb-2">
                                 <div

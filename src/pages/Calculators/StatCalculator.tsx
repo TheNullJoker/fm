@@ -130,12 +130,239 @@ function calculateEffectiveHp(stats: AggregatedStats): number {
     return stats.totalHealth / (1 - cappedBlockChance);
 }
 
+type PriorityResult = {
+    stat: string;
+    gainPercent: number;
+};
+
+type PriorityStatKey =
+    | 'MeleeDMG'
+    | 'AtkSpeed'
+    | 'Double'
+    | 'SkillDMG'
+    | 'Lifesteal'
+    | 'HP'
+    | 'DMG'
+    | 'RangedDMG'
+    | 'Crit%'
+    | 'CritDMG'
+    | 'SkillCD'
+    | 'Regen'
+    | 'Block';
+
+const PRIORITY_MAX_ROLLS: Record<PriorityStatKey, number> = {
+    MeleeDMG: 50,
+    AtkSpeed: 40,
+    Double: 40,
+    SkillDMG: 30,
+    Lifesteal: 20,
+    HP: 15,
+    DMG: 15,
+    RangedDMG: 15,
+    'Crit%': 12,
+    CritDMG: 100,
+    SkillCD: 7,
+    Regen: 6,
+    Block: 5,
+};
+
+const PRIORITY_LABELS: Record<PriorityStatKey, string> = {
+    MeleeDMG: 'Melee DMG',
+    AtkSpeed: 'Atk Speed',
+    Double: 'Double',
+    SkillDMG: 'Skill DMG',
+    Lifesteal: 'Lifesteal',
+    HP: 'HP',
+    DMG: 'DMG',
+    RangedDMG: 'Ranged DMG',
+    'Crit%': 'Crit %',
+    CritDMG: 'Crit DMG',
+    SkillCD: 'Skill CD',
+    Regen: 'Regen',
+    Block: 'Block',
+};
+
+const PRIORITY_KEYS: PriorityStatKey[] = [
+    'MeleeDMG',
+    'AtkSpeed',
+    'Double',
+    'SkillDMG',
+    'Lifesteal',
+    'HP',
+    'DMG',
+    'RangedDMG',
+    'Crit%',
+    'CritDMG',
+    'SkillCD',
+    'Regen',
+    'Block',
+];
+
+const PRIORITY_STAT_IDS: Record<PriorityStatKey, string> = {
+    MeleeDMG: 'MeleeDamageMulti',
+    AtkSpeed: 'AttackSpeed',
+    Double: 'DoubleDamageChance',
+    SkillDMG: 'SkillDamageMulti',
+    Lifesteal: 'LifeSteal',
+    HP: 'HealthMulti',
+    DMG: 'DamageMulti',
+    RangedDMG: 'RangedDamageMulti',
+    'Crit%': 'CriticalChance',
+    CritDMG: 'CriticalMulti',
+    SkillCD: 'SkillCooldownMulti',
+    Regen: 'HealthRegen',
+    Block: 'BlockChance',
+};
+
+type SecondaryStatEntry = {
+    statId: string;
+    value: number;
+};
+
+type PairedObject = {
+    id: string;
+    label: string;
+    secondaryStats: SecondaryStatEntry[];
+};
+
+function calculateCleanDps(stats: AggregatedStats): number {
+    return calculateEffectiveDps(stats);
+}
+
+function calculateEffectivePower(stats: AggregatedStats): number {
+    const cleanDps = calculateCleanDps(stats);
+    const sustain = (stats.totalHealth * stats.healthRegen) + (cleanDps * stats.lifeSteal);
+    const cappedBlockChance = Math.min(stats.blockChance, 0.95);
+    const sustainBoost = sustain / Math.max(1 - cappedBlockChance, 0.05);
+    return cleanDps + stats.totalHealth + sustainBoost;
+}
+
+function applySecondaryDelta(stats: AggregatedStats, statId: string, delta: number): AggregatedStats {
+    if (delta === 0) return stats;
+
+    switch (statId) {
+        case 'DamageMulti': {
+            const nextDamageMultiplier = Math.max(0, stats.damageMultiplier + delta);
+            const ratio = stats.damageMultiplier > 0 ? nextDamageMultiplier / stats.damageMultiplier : 1;
+            return {
+                ...stats,
+                damageMultiplier: nextDamageMultiplier,
+                secondaryDamageMulti: stats.secondaryDamageMulti + delta,
+                totalDamage: stats.totalDamage * ratio,
+                meleeDamage: stats.meleeDamage * ratio,
+                rangedDamage: stats.rangedDamage * ratio,
+            };
+        }
+        case 'HealthMulti': {
+            const nextHealthMultiplier = Math.max(0, stats.healthMultiplier + delta);
+            const ratio = stats.healthMultiplier > 0 ? nextHealthMultiplier / stats.healthMultiplier : 1;
+            return {
+                ...stats,
+                healthMultiplier: nextHealthMultiplier,
+                secondaryHealthMulti: stats.secondaryHealthMulti + delta,
+                totalHealth: stats.totalHealth * ratio,
+            };
+        }
+        case 'MeleeDamageMulti': {
+            const prevSpec = 1 + stats.meleeDamageMultiplier;
+            const nextSpec = Math.max(0, prevSpec + delta);
+            const ratio = prevSpec > 0 ? nextSpec / prevSpec : 1;
+            if (stats.isRangedWeapon) {
+                return {
+                    ...stats,
+                    meleeDamageMultiplier: stats.meleeDamageMultiplier + delta,
+                };
+            }
+            return {
+                ...stats,
+                meleeDamageMultiplier: stats.meleeDamageMultiplier + delta,
+                totalDamage: stats.totalDamage * ratio,
+                meleeDamage: stats.meleeDamage * ratio,
+            };
+        }
+        case 'RangedDamageMulti': {
+            const prevSpec = 1 + stats.rangedDamageMultiplier;
+            const nextSpec = Math.max(0, prevSpec + delta);
+            const ratio = prevSpec > 0 ? nextSpec / prevSpec : 1;
+            if (!stats.isRangedWeapon) {
+                return {
+                    ...stats,
+                    rangedDamageMultiplier: stats.rangedDamageMultiplier + delta,
+                };
+            }
+            return {
+                ...stats,
+                rangedDamageMultiplier: stats.rangedDamageMultiplier + delta,
+                totalDamage: stats.totalDamage * ratio,
+                rangedDamage: stats.rangedDamage * ratio,
+            };
+        }
+        case 'AttackSpeed':
+            return { ...stats, attackSpeedMultiplier: stats.attackSpeedMultiplier + delta };
+        case 'CriticalChance':
+            return { ...stats, criticalChance: stats.criticalChance + delta };
+        case 'CriticalMulti':
+            return { ...stats, criticalDamage: stats.criticalDamage + delta };
+        case 'DoubleDamageChance':
+            return { ...stats, doubleDamageChance: stats.doubleDamageChance + delta };
+        case 'LifeSteal':
+            return { ...stats, lifeSteal: stats.lifeSteal + delta };
+        case 'HealthRegen':
+            return { ...stats, healthRegen: stats.healthRegen + delta };
+        case 'BlockChance':
+            return { ...stats, blockChance: stats.blockChance + delta };
+        case 'SkillCooldownMulti':
+            return { ...stats, skillCooldownReduction: stats.skillCooldownReduction + delta };
+        case 'SkillDamageMulti':
+            return { ...stats, skillDamageMultiplier: stats.skillDamageMultiplier + delta };
+        default:
+            return stats;
+    }
+}
+
+function applySecondaryStats(stats: AggregatedStats, entries: SecondaryStatEntry[], direction: 1 | -1): AggregatedStats {
+    return entries.reduce((acc, entry) => {
+        const delta = (entry.value / 100) * direction;
+        return applySecondaryDelta(acc, entry.statId, delta);
+    }, stats);
+}
+
+function collectPairedObjects(profile: UserProfile): PairedObject[] {
+    const objects: PairedObject[] = [];
+
+    for (const [slotKey, item] of Object.entries(profile.items)) {
+        if (!item?.secondaryStats?.length) continue;
+        objects.push({
+            id: `item-${slotKey}`,
+            label: slotKey,
+            secondaryStats: item.secondaryStats.slice(0, 2),
+        });
+    }
+
+    profile.pets.active.forEach((pet, index) => {
+        if (!pet.secondaryStats?.length) return;
+        const label = pet.customName
+            ? `Pet ${pet.customName}`
+            : `Pet ${index + 1} ${pet.rarity} ${pet.id}`;
+        objects.push({
+            id: `pet-${index}`,
+            label,
+            secondaryStats: pet.secondaryStats.slice(0, 2),
+        });
+    });
+
+    return objects;
+}
+
 export default function StatCalculator() {
     const base = useProfile();
     const [showGuide, setShowGuide] = useState(false);
     const [sandboxProfile, setSandboxProfile] = useState<UserProfile>(() => cloneProfile(base.profile));
     const [baselineProfile, setBaselineProfile] = useState<UserProfile>(() => cloneProfile(base.profile));
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [priorityList, setPriorityList] = useState<PriorityResult[]>([]);
+    const [weakestObjectLabel, setWeakestObjectLabel] = useState<string>('');
+    const [weakestObjectId, setWeakestObjectId] = useState<string>('');
 
     useEffect(() => {
         setSandboxProfile(cloneProfile(base.profile));
@@ -198,6 +425,72 @@ export default function StatCalculator() {
     const baselineEhp = baselineStats ? calculateEffectiveHp(baselineStats) : 0;
     const baselineRecRate = baselineEhp > 0 ? (baselineHps / baselineEhp) * 100 : 0;
 
+    const runPriorityAnalysis = useCallback(() => {
+        if (!sandboxStats) {
+            setPriorityList([]);
+            setWeakestObjectLabel('');
+            setWeakestObjectId('');
+            return;
+        }
+
+        const basePower = calculateEffectivePower(sandboxStats);
+        const objects = collectPairedObjects(sandboxProfile);
+        if (objects.length === 0) {
+            setPriorityList([]);
+            setWeakestObjectLabel('');
+            setWeakestObjectId('');
+            return;
+        }
+
+        let weakestRemovalStats = sandboxStats;
+        let powerAfterRemoval = Number.NEGATIVE_INFINITY;
+        let weakestLabel = '';
+        let weakestId = '';
+
+        for (const object of objects) {
+            const removedStats = applySecondaryStats(sandboxStats, object.secondaryStats, -1);
+            const removedPower = calculateEffectivePower(removedStats);
+            if (removedPower >= powerAfterRemoval) {
+                weakestRemovalStats = removedStats;
+                powerAfterRemoval = removedPower;
+                weakestLabel = object.label;
+                weakestId = object.id;
+            }
+        }
+
+        const results = PRIORITY_KEYS.map((key) => {
+            const statId = PRIORITY_STAT_IDS[key];
+            const delta = (PRIORITY_MAX_ROLLS[key] * 0.5) / 100;
+            const simulatedStats = applySecondaryDelta(weakestRemovalStats, statId, delta);
+            const simulatedPower = calculateEffectivePower(simulatedStats);
+            const gainPercent = basePower > 0
+                ? ((simulatedPower - powerAfterRemoval) / basePower) * 100
+                : 0;
+
+            return {
+                stat: PRIORITY_LABELS[key],
+                gainPercent,
+            };
+        });
+
+        results.sort((a, b) => b.gainPercent - a.gainPercent);
+        setPriorityList(results.slice(0, 6));
+        setWeakestObjectLabel(weakestLabel);
+        setWeakestObjectId(weakestId);
+    }, [sandboxProfile, sandboxStats]);
+
+    const highlightedSlotKey = useMemo(() => {
+        if (!weakestObjectId.startsWith('item-')) return null;
+        const slot = weakestObjectId.replace('item-', '') as keyof UserProfile['items'];
+        return slot in sandboxProfile.items ? slot : null;
+    }, [sandboxProfile.items, weakestObjectId]);
+
+    const highlightedPetIndex = useMemo(() => {
+        if (!weakestObjectId.startsWith('pet-')) return null;
+        const index = Number(weakestObjectId.replace('pet-', ''));
+        return Number.isFinite(index) ? index : null;
+    }, [weakestObjectId]);
+
     return (
         <div className="space-y-6 animate-fade-in pb-20 max-w-6xl mx-auto">
             <div className="text-center space-y-2 mb-6">
@@ -256,10 +549,40 @@ export default function StatCalculator() {
                 </div>
             </Card>
 
+            <Card className="p-4 flex flex-col gap-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <div className="text-sm font-semibold text-text-primary">Stat Priority Analysis</div>
+                        <div className="text-xs text-text-secondary">Object Replacement Value (assumes replacing your weakest paired item/pet).</div>
+                        {weakestObjectLabel ? (
+                            <div className="text-xs text-text-muted">Weakest paired object: <span className="text-text-secondary">{weakestObjectLabel}</span></div>
+                        ) : null}
+                    </div>
+                    <Button variant="secondary" size="sm" onClick={runPriorityAnalysis} disabled={!sandboxStats}>
+                        Run Analysis
+                    </Button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {priorityList.length === 0 ? (
+                        <div className="text-sm text-text-muted">Run the analysis to see the top 6 replacement values.</div>
+                    ) : (
+                        priorityList.map((entry) => (
+                            <div
+                                key={entry.stat}
+                                className="bg-bg-input/30 rounded-lg border border-border/30 p-3 flex items-center justify-between"
+                            >
+                                <div className="text-sm text-text-secondary">{entry.stat}</div>
+                                <div className="text-sm font-semibold text-accent-primary">+{entry.gainPercent.toFixed(2)}%</div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </Card>
+
             {/* Equipment, Mount, Pets panels (calculator sandbox) */}
             <ProfileContext.Provider value={sandboxContext}>
-                <EquipmentPanel />
-                <PetPanel />
+                <EquipmentPanel highlightedSlotKey={highlightedSlotKey} />
+                <PetPanel highlightedPetIndex={highlightedPetIndex} />
             </ProfileContext.Provider>
 
             {/* Guide Modal */}

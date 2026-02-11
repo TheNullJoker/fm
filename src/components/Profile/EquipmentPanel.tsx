@@ -81,7 +81,7 @@ const SLOT_TYPE_ID_MAP: Record<string, number> = {
     'Belt': 7
 };
 
-export function EquipmentPanel() {
+export function EquipmentPanel({ highlightedSlotKey }: { highlightedSlotKey?: keyof UserProfile['items'] | null }) {
     const { profile, updateNestedProfile } = useProfile();
     const [selectedSlot, setSelectedSlot] = useState<keyof UserProfile['items'] | null>(null);
     const [itemToSave, setItemToSave] = useState<{ slot: keyof UserProfile['items']; item: ItemSlot } | null>(null);
@@ -285,6 +285,7 @@ export function EquipmentPanel() {
                     const equipped = profile.items[slot.key];
                     const itemImage = getEquippedImage(slot.key, equipped);
                     const inventoryStyle = getInventoryIconStyle(slot.key, 48);
+                    const isHighlighted = highlightedSlotKey === slot.key;
 
                     return (
                         <div
@@ -292,7 +293,8 @@ export function EquipmentPanel() {
                             onClick={() => setSelectedSlot(slot.key)}
                             className={cn(
                                 "h-full min-h-[160px] rounded-xl border-2 border-dashed border-border hover:border-accent-primary/50 cursor-pointer transition-colors relative flex flex-col items-center p-1.5 gap-1 group",
-                                equipped ? "border-solid bg-bg-secondary" : "bg-bg-input/30 justify-center"
+                                equipped ? "border-solid bg-bg-secondary" : "bg-bg-input/30 justify-center",
+                                isHighlighted && "border-accent-primary ring-2 ring-accent-primary/50"
                             )}
                         >
                             {equipped ? (
