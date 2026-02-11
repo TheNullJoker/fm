@@ -3,3 +3,5 @@ temp_hold
 dist
 .DS_Store
 pseudocodice_esportato.c
+.vscode/
+testing-stat-calc/
