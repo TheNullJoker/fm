@@ -8,6 +8,7 @@ import { ProfileContext, useProfile } from '../../context/ProfileContext';
 import { useGameData } from '../../hooks/useGameData';
 import { useTreeMode } from '../../context/TreeModeContext';
 import { calculateStats, type AggregatedStats, type LibraryData } from '../../utils/statEngine';
+import { formatSecondaryStat } from '../../utils/statNames';
 import type { UserProfile } from '../../types/Profile';
 
 function cloneProfile(profile: UserProfile): UserProfile {
@@ -131,6 +132,7 @@ function calculateEffectiveHp(stats: AggregatedStats): number {
 }
 
 type PriorityResult = {
+    statKey: PriorityStatKey;
     stat: string;
     gainPercent: number;
 };
@@ -225,16 +227,21 @@ type PairedObject = {
     secondaryStats: SecondaryStatEntry[];
 };
 
+type PowerWeights = {
+    offense: number;
+    sustain: number;
+};
+
 function calculateCleanDps(stats: AggregatedStats): number {
     return calculateEffectiveDps(stats);
 }
 
-function calculateEffectivePower(stats: AggregatedStats): number {
+function calculateEffectivePower(stats: AggregatedStats, weights: PowerWeights): number {
     const cleanDps = calculateCleanDps(stats);
     const sustain = (stats.totalHealth * stats.healthRegen) + (cleanDps * stats.lifeSteal);
     const cappedBlockChance = Math.min(stats.blockChance, 0.95);
     const sustainBoost = sustain / Math.max(1 - cappedBlockChance, 0.05);
-    return cleanDps + stats.totalHealth + sustainBoost;
+    return (cleanDps * weights.offense) + stats.totalHealth + (sustainBoost * weights.sustain);
 }
 
 function applySecondaryDelta(stats: AggregatedStats, statId: string, delta: number): AggregatedStats {
@@ -327,7 +334,7 @@ function applySecondaryStats(stats: AggregatedStats, entries: SecondaryStatEntry
     }, stats);
 }
 
-function collectPairedObjects(profile: UserProfile): PairedObject[] {
+function collectPairedItems(profile: UserProfile): PairedObject[] {
     const objects: PairedObject[] = [];
 
     for (const [slotKey, item] of Object.entries(profile.items)) {
@@ -338,6 +345,12 @@ function collectPairedObjects(profile: UserProfile): PairedObject[] {
             secondaryStats: item.secondaryStats.slice(0, 2),
         });
     }
+
+    return objects;
+}
+
+function collectPairedPets(profile: UserProfile): PairedObject[] {
+    const objects: PairedObject[] = [];
 
     profile.pets.active.forEach((pet, index) => {
         if (!pet.secondaryStats?.length) return;
@@ -354,25 +367,64 @@ function collectPairedObjects(profile: UserProfile): PairedObject[] {
     return objects;
 }
 
+function buildSimulatedSecondaryStats(replacements: PriorityResult[], slotCount: number): SecondaryStatEntry[] {
+    const entries: SecondaryStatEntry[] = [];
+    const topStats = replacements.slice(0, slotCount);
+
+    for (const entry of topStats) {
+        const statId = PRIORITY_STAT_IDS[entry.statKey];
+        const value = PRIORITY_MAX_ROLLS[entry.statKey] * 0.75;
+        entries.push({ statId, value });
+    }
+
+    return entries;
+}
+
 export default function StatCalculator() {
     const base = useProfile();
     const [showGuide, setShowGuide] = useState(false);
     const [sandboxProfile, setSandboxProfile] = useState<UserProfile>(() => cloneProfile(base.profile));
     const [baselineProfile, setBaselineProfile] = useState<UserProfile>(() => cloneProfile(base.profile));
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-    const [priorityList, setPriorityList] = useState<PriorityResult[]>([]);
-    const [weakestObjectLabel, setWeakestObjectLabel] = useState<string>('');
-    const [weakestObjectId, setWeakestObjectId] = useState<string>('');
+    const [weakestItemLabel, setWeakestItemLabel] = useState<string>('');
+    const [weakestItemId, setWeakestItemId] = useState<string>('');
+    const [weakestItemStats, setWeakestItemStats] = useState<SecondaryStatEntry[] | null>(null);
+    const [weakestPetLabel, setWeakestPetLabel] = useState<string>('');
+    const [weakestPetId, setWeakestPetId] = useState<string>('');
+    const [weakestPetStats, setWeakestPetStats] = useState<SecondaryStatEntry[] | null>(null);
+    const [itemReplacementList, setItemReplacementList] = useState<PriorityResult[]>([]);
+    const [petReplacementList, setPetReplacementList] = useState<PriorityResult[]>([]);
+    const [itemSwapGain, setItemSwapGain] = useState<number | null>(null);
+    const [petSwapGain, setPetSwapGain] = useState<number | null>(null);
+    const [itemNetPowerDelta, setItemNetPowerDelta] = useState<number | null>(null);
+    const [petNetPowerDelta, setPetNetPowerDelta] = useState<number | null>(null);
+    const [itemOffensePercent, setItemOffensePercent] = useState<number | null>(null);
+    const [itemSustainPercent, setItemSustainPercent] = useState<number | null>(null);
+    const [petOffensePercent, setPetOffensePercent] = useState<number | null>(null);
+    const [petSustainPercent, setPetSustainPercent] = useState<number | null>(null);
+    const [powerWeights, setPowerWeights] = useState<PowerWeights>({ offense: 1, sustain: 1 });
+    const [simulatedItemOverride, setSimulatedItemOverride] = useState<{
+        slotKey: keyof UserProfile['items'];
+        secondaryStats: SecondaryStatEntry[];
+    } | null>(null);
+    const [simulatedPetOverride, setSimulatedPetOverride] = useState<{
+        petIndex: number;
+        secondaryStats: SecondaryStatEntry[];
+    } | null>(null);
 
     useEffect(() => {
         setSandboxProfile(cloneProfile(base.profile));
         setBaselineProfile(cloneProfile(base.profile));
         setHasUnsavedChanges(false);
+        setSimulatedItemOverride(null);
+        setSimulatedPetOverride(null);
     }, [base.profile.id]);
 
     const updateSandboxProfile = useCallback((updates: Partial<UserProfile>) => {
         setSandboxProfile(prev => ({ ...prev, ...updates }));
         setHasUnsavedChanges(true);
+        setSimulatedItemOverride(null);
+        setSimulatedPetOverride(null);
     }, []);
 
     const updateSandboxNestedProfile = useCallback((section: keyof UserProfile, data: any) => {
@@ -384,16 +436,65 @@ export default function StatCalculator() {
             return { ...prev, [section]: data };
         });
         setHasUnsavedChanges(true);
+        setSimulatedItemOverride(null);
+        setSimulatedPetOverride(null);
     }, []);
+
+    const displayProfile = useMemo(() => {
+        const hasItemOverride = !!simulatedItemOverride;
+        const hasPetOverride = !!simulatedPetOverride;
+        if (!hasItemOverride && !hasPetOverride) return sandboxProfile;
+
+        let nextProfile = sandboxProfile;
+
+        if (simulatedItemOverride) {
+            const { slotKey, secondaryStats } = simulatedItemOverride;
+            const item = nextProfile.items[slotKey];
+            if (item) {
+                nextProfile = {
+                    ...nextProfile,
+                    items: {
+                        ...nextProfile.items,
+                        [slotKey]: {
+                            ...item,
+                            secondaryStats,
+                        },
+                    },
+                };
+            }
+        }
+
+        if (simulatedPetOverride) {
+            const { petIndex, secondaryStats } = simulatedPetOverride;
+            const pet = nextProfile.pets.active[petIndex];
+            if (pet) {
+                const updatedPets = [...nextProfile.pets.active];
+                updatedPets[petIndex] = {
+                    ...pet,
+                    secondaryStats,
+                };
+                nextProfile = {
+                    ...nextProfile,
+                    pets: {
+                        ...nextProfile.pets,
+                        active: updatedPets,
+                    },
+                };
+            }
+        }
+
+        return nextProfile;
+    }, [sandboxProfile, simulatedItemOverride, simulatedPetOverride]);
 
     const sandboxContext = useMemo(() => ({
         ...base,
-        profile: sandboxProfile,
+        profile: displayProfile,
         updateProfile: updateSandboxProfile,
         updateNestedProfile: updateSandboxNestedProfile,
-    }), [base, sandboxProfile, updateSandboxProfile, updateSandboxNestedProfile]);
+    }), [base, displayProfile, updateSandboxProfile, updateSandboxNestedProfile]);
 
-    const sandboxStats = useStatsForProfile(sandboxProfile);
+    const sandboxStats = useStatsForProfile(displayProfile);
+    const currentSandboxStats = useStatsForProfile(sandboxProfile);
     const baselineStats = useStatsForProfile(baselineProfile);
 
     const handleApplyToProfile = () => {
@@ -424,72 +525,246 @@ export default function StatCalculator() {
     const baselineHps = baselineStats ? calculateEffectiveHps(baselineStats) : 0;
     const baselineEhp = baselineStats ? calculateEffectiveHp(baselineStats) : 0;
     const baselineRecRate = baselineEhp > 0 ? (baselineHps / baselineEhp) * 100 : 0;
+    const offenseDeltaPercent = baselineDps > 0 ? ((currentDps - baselineDps) / baselineDps) * 100 : 0;
 
     const runPriorityAnalysis = useCallback(() => {
-        if (!sandboxStats) {
-            setPriorityList([]);
-            setWeakestObjectLabel('');
-            setWeakestObjectId('');
+        if (!currentSandboxStats) {
+            setWeakestItemLabel('');
+            setWeakestItemId('');
+            setWeakestItemStats(null);
+            setWeakestPetLabel('');
+            setWeakestPetId('');
+            setWeakestPetStats(null);
+            setItemReplacementList([]);
+            setPetReplacementList([]);
+            setItemSwapGain(null);
+            setPetSwapGain(null);
+            setItemNetPowerDelta(null);
+            setPetNetPowerDelta(null);
+            setItemOffensePercent(null);
+            setItemSustainPercent(null);
+            setPetOffensePercent(null);
+            setPetSustainPercent(null);
+            setSimulatedItemOverride(null);
+            setSimulatedPetOverride(null);
             return;
         }
 
-        const basePower = calculateEffectivePower(sandboxStats);
-        const objects = collectPairedObjects(sandboxProfile);
-        if (objects.length === 0) {
-            setPriorityList([]);
-            setWeakestObjectLabel('');
-            setWeakestObjectId('');
-            return;
-        }
+        const basePower = calculateEffectivePower(currentSandboxStats, powerWeights);
+        setItemSwapGain(null);
+        setPetSwapGain(null);
+        setItemNetPowerDelta(null);
+        setPetNetPowerDelta(null);
+        setItemOffensePercent(null);
+        setItemSustainPercent(null);
+        setPetOffensePercent(null);
+        setPetSustainPercent(null);
+        setSimulatedItemOverride(null);
+        setSimulatedPetOverride(null);
+        const items = collectPairedItems(sandboxProfile);
+        const pets = collectPairedPets(sandboxProfile);
 
-        let weakestRemovalStats = sandboxStats;
-        let powerAfterRemoval = Number.NEGATIVE_INFINITY;
-        let weakestLabel = '';
-        let weakestId = '';
+        if (items.length > 0) {
+            let weakestRemovalStats = currentSandboxStats;
+            let powerAfterRemoval = Number.NEGATIVE_INFINITY;
+            let weakestLabel = '';
+            let weakestId = '';
+            let weakestStats: SecondaryStatEntry[] | null = null;
 
-        for (const object of objects) {
-            const removedStats = applySecondaryStats(sandboxStats, object.secondaryStats, -1);
-            const removedPower = calculateEffectivePower(removedStats);
-            if (removedPower >= powerAfterRemoval) {
-                weakestRemovalStats = removedStats;
-                powerAfterRemoval = removedPower;
-                weakestLabel = object.label;
-                weakestId = object.id;
+            for (const object of items) {
+                const removedStats = applySecondaryStats(currentSandboxStats, object.secondaryStats, -1);
+                const removedPower = calculateEffectivePower(removedStats, powerWeights);
+                if (removedPower >= powerAfterRemoval) {
+                    weakestRemovalStats = removedStats;
+                    powerAfterRemoval = removedPower;
+                    weakestLabel = object.label;
+                    weakestId = object.id;
+                    weakestStats = object.secondaryStats;
+                }
             }
+
+            const itemResults: PriorityResult[] = [];
+            for (const key of PRIORITY_KEYS) {
+                const statId = PRIORITY_STAT_IDS[key];
+                const delta = (PRIORITY_MAX_ROLLS[key] * 0.5) / 100;
+                const simulatedStats = applySecondaryDelta(weakestRemovalStats, statId, delta);
+                const simulatedPower = calculateEffectivePower(simulatedStats, powerWeights);
+                const gainPercent = basePower > 0
+                    ? ((simulatedPower - powerAfterRemoval) / basePower) * 100
+                    : 0;
+                itemResults.push({ statKey: key, stat: PRIORITY_LABELS[key], gainPercent });
+            }
+
+            itemResults.sort((a, b) => b.gainPercent - a.gainPercent);
+
+            setWeakestItemLabel(weakestLabel);
+            setWeakestItemId(weakestId);
+            setWeakestItemStats(weakestStats);
+            setItemReplacementList(itemResults.slice(0, 6));
+        } else {
+            setWeakestItemLabel('');
+            setWeakestItemId('');
+            setWeakestItemStats(null);
+            setItemReplacementList([]);
         }
 
-        const results = PRIORITY_KEYS.map((key) => {
-            const statId = PRIORITY_STAT_IDS[key];
-            const delta = (PRIORITY_MAX_ROLLS[key] * 0.5) / 100;
-            const simulatedStats = applySecondaryDelta(weakestRemovalStats, statId, delta);
-            const simulatedPower = calculateEffectivePower(simulatedStats);
-            const gainPercent = basePower > 0
-                ? ((simulatedPower - powerAfterRemoval) / basePower) * 100
-                : 0;
+        if (pets.length > 0) {
+            let weakestRemovalStats = currentSandboxStats;
+            let powerAfterRemoval = Number.NEGATIVE_INFINITY;
+            let weakestLabel = '';
+            let weakestId = '';
+            let weakestStats: SecondaryStatEntry[] | null = null;
 
-            return {
-                stat: PRIORITY_LABELS[key],
-                gainPercent,
-            };
+            for (const object of pets) {
+                const removedStats = applySecondaryStats(currentSandboxStats, object.secondaryStats, -1);
+                const removedPower = calculateEffectivePower(removedStats, powerWeights);
+                if (removedPower >= powerAfterRemoval) {
+                    weakestRemovalStats = removedStats;
+                    powerAfterRemoval = removedPower;
+                    weakestLabel = object.label;
+                    weakestId = object.id;
+                    weakestStats = object.secondaryStats;
+                }
+            }
+
+            const petResults: PriorityResult[] = [];
+            for (const key of PRIORITY_KEYS) {
+                const statId = PRIORITY_STAT_IDS[key];
+                const delta = (PRIORITY_MAX_ROLLS[key] * 0.5) / 100;
+                const simulatedStats = applySecondaryDelta(weakestRemovalStats, statId, delta);
+                const simulatedPower = calculateEffectivePower(simulatedStats, powerWeights);
+                const gainPercent = basePower > 0
+                    ? ((simulatedPower - powerAfterRemoval) / basePower) * 100
+                    : 0;
+                petResults.push({ statKey: key, stat: PRIORITY_LABELS[key], gainPercent });
+            }
+
+            petResults.sort((a, b) => b.gainPercent - a.gainPercent);
+
+            setWeakestPetLabel(weakestLabel);
+            setWeakestPetId(weakestId);
+            setWeakestPetStats(weakestStats);
+            setPetReplacementList(petResults.slice(0, 6));
+        } else {
+            setWeakestPetLabel('');
+            setWeakestPetId('');
+            setWeakestPetStats(null);
+            setPetReplacementList([]);
+        }
+    }, [sandboxProfile, currentSandboxStats, powerWeights]);
+
+    const simulateItemReplacement = useCallback(() => {
+        if (!weakestItemId || itemReplacementList.length === 0 || !weakestItemStats) return;
+        const slotKey = weakestItemId.replace('item-', '') as keyof UserProfile['items'];
+        if (!(slotKey in sandboxProfile.items)) return;
+
+        const slotCount = Math.max(1, Math.min(2, weakestItemStats.length));
+        const simulatedSecondaryStats = buildSimulatedSecondaryStats(itemReplacementList, slotCount);
+
+        setSimulatedItemOverride({
+            slotKey,
+            secondaryStats: simulatedSecondaryStats,
         });
+    }, [itemReplacementList, sandboxProfile.items, weakestItemId, weakestItemStats]);
 
-        results.sort((a, b) => b.gainPercent - a.gainPercent);
-        setPriorityList(results.slice(0, 6));
-        setWeakestObjectLabel(weakestLabel);
-        setWeakestObjectId(weakestId);
-    }, [sandboxProfile, sandboxStats]);
+    const simulatePetReplacement = useCallback(() => {
+        if (!weakestPetId || petReplacementList.length === 0 || !weakestPetStats) return;
+        const petIndex = Number(weakestPetId.replace('pet-', ''));
+        if (!Number.isFinite(petIndex)) return;
+        if (!sandboxProfile.pets.active[petIndex]) return;
+
+        const slotCount = Math.max(1, Math.min(2, weakestPetStats.length));
+        const simulatedSecondaryStats = buildSimulatedSecondaryStats(petReplacementList, slotCount);
+
+        setSimulatedPetOverride({
+            petIndex,
+            secondaryStats: simulatedSecondaryStats,
+        });
+    }, [petReplacementList, sandboxProfile.pets.active, weakestPetId, weakestPetStats]);
+
+    const simulateTopReplacement = useCallback((type: 'item' | 'pet') => {
+        if (!currentSandboxStats) return;
+
+        const basePower = calculateEffectivePower(currentSandboxStats, powerWeights);
+        const weakestStats = type === 'item' ? weakestItemStats : weakestPetStats;
+        const replacementList = type === 'item' ? itemReplacementList : petReplacementList;
+
+        if (!weakestStats || replacementList.length === 0) {
+            if (type === 'item') {
+                setItemSwapGain(null);
+                setItemNetPowerDelta(null);
+            } else {
+                setPetSwapGain(null);
+                setPetNetPowerDelta(null);
+            }
+            return;
+        }
+
+        const removedStats = applySecondaryStats(currentSandboxStats, weakestStats, -1);
+        const powerAfterRemoval = calculateEffectivePower(removedStats, powerWeights);
+        const slotsToFill = weakestStats.length >= 2 ? 2 : 1;
+        const topStats = replacementList.slice(0, slotsToFill);
+
+        let simulatedStats = removedStats;
+        for (const entry of topStats) {
+            const statId = PRIORITY_STAT_IDS[entry.statKey];
+            const delta = (PRIORITY_MAX_ROLLS[entry.statKey] * 0.75) / 100;
+            simulatedStats = applySecondaryDelta(simulatedStats, statId, delta);
+        }
+
+        const simulatedPower = calculateEffectivePower(simulatedStats, powerWeights);
+        const gainPercent = basePower > 0
+            ? ((simulatedPower - powerAfterRemoval) / basePower) * 100
+            : 0;
+        const netPowerDelta = ((simulatedPower - basePower) / basePower) * 100;
+
+        // Calculate offense and sustain deltas - compare simulated against current sandbox (without overrides)
+        const baselineDps = calculateEffectiveDps(currentSandboxStats);
+        const simulatedDps = calculateEffectiveDps(simulatedStats);
+        const offenseDelta = baselineDps > 0 ? ((simulatedDps - baselineDps) / baselineDps) * 100 : 0;
+
+        const baselineHps = calculateEffectiveHps(currentSandboxStats);
+        const simulatedHps = calculateEffectiveHps(simulatedStats);
+        const baselineEhp = calculateEffectiveHp(currentSandboxStats);
+        const simulatedEhp = calculateEffectiveHp(simulatedStats);
+        const baselineRecRate = baselineEhp > 0 ? (baselineHps / baselineEhp) * 100 : 0;
+        const simulatedRecRate = simulatedEhp > 0 ? (simulatedHps / simulatedEhp) * 100 : 0;
+        const sustainDelta = simulatedRecRate - baselineRecRate;
+
+        if (type === 'item') {
+            setItemSwapGain(gainPercent);
+            setItemNetPowerDelta(netPowerDelta);
+            setItemOffensePercent(offenseDelta);
+            setItemSustainPercent(sustainDelta);
+        } else {
+            setPetSwapGain(gainPercent);
+            setPetNetPowerDelta(netPowerDelta);
+            setPetOffensePercent(offenseDelta);
+            setPetSustainPercent(sustainDelta);
+        }
+    }, [itemReplacementList, petReplacementList, powerWeights, currentSandboxStats, weakestItemStats, weakestPetStats]);
 
     const highlightedSlotKey = useMemo(() => {
-        if (!weakestObjectId.startsWith('item-')) return null;
-        const slot = weakestObjectId.replace('item-', '') as keyof UserProfile['items'];
+        if (!weakestItemId.startsWith('item-')) return null;
+        const slot = weakestItemId.replace('item-', '') as keyof UserProfile['items'];
         return slot in sandboxProfile.items ? slot : null;
-    }, [sandboxProfile.items, weakestObjectId]);
+    }, [sandboxProfile.items, weakestItemId]);
 
     const highlightedPetIndex = useMemo(() => {
-        if (!weakestObjectId.startsWith('pet-')) return null;
-        const index = Number(weakestObjectId.replace('pet-', ''));
+        if (!weakestPetId.startsWith('pet-')) return null;
+        const index = Number(weakestPetId.replace('pet-', ''));
         return Number.isFinite(index) ? index : null;
-    }, [weakestObjectId]);
+    }, [weakestPetId]);
+
+    // Recalculate simulation deltas when percentage changes
+    useEffect(() => {
+        if (itemSwapGain !== null) {
+            simulateTopReplacement('item');
+        }
+        if (petSwapGain !== null) {
+            simulateTopReplacement('pet');
+        }
+    }, [simulateTopReplacement]);
 
     return (
         <div className="space-y-6 animate-fade-in pb-20 max-w-6xl mx-auto">
@@ -528,8 +803,8 @@ export default function StatCalculator() {
                     <div className="bg-bg-input/30 rounded-lg border border-border/30 p-3">
                         <div className="text-xs text-text-muted uppercase">Offense</div>
                         <div className="text-lg font-bold text-accent-primary">{Math.round(currentDps).toLocaleString()}</div>
-                        <div className={currentDps - baselineDps >= 0 ? 'text-green-400 text-xs' : 'text-red-400 text-xs'}>
-                            {currentDps - baselineDps >= 0 ? '+' : ''}{Math.round(currentDps - baselineDps).toLocaleString()}
+                        <div className={offenseDeltaPercent >= 0 ? 'text-green-400 text-xs' : 'text-red-400 text-xs'}>
+                            {offenseDeltaPercent >= 0 ? '+' : ''}{offenseDeltaPercent.toFixed(1)}%
                         </div>
                     </div>
                     <div className="bg-bg-input/30 rounded-lg border border-border/30 p-3">
@@ -553,29 +828,216 @@ export default function StatCalculator() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <div className="text-sm font-semibold text-text-primary">Stat Priority Analysis</div>
-                        <div className="text-xs text-text-secondary">Object Replacement Value (assumes replacing your weakest paired item/pet).</div>
-                        {weakestObjectLabel ? (
-                            <div className="text-xs text-text-muted">Weakest paired object: <span className="text-text-secondary">{weakestObjectLabel}</span></div>
-                        ) : null}
+                        <div className="text-xs text-text-secondary">Object Replacement Value (replacing weakest paired item or pet).</div>
+                        
+                        <div className="mt-4 rounded-lg border border-border/30 bg-bg-input/20 p-3 space-y-3">
+                            <div>
+                                <div className="flex items-center justify-between text-xs mb-2">
+                                    <span className="font-semibold text-text-secondary">Stat Priority Focus</span>
+                                    <span className="text-text-muted">Adjust offense vs sustain importance</span>
+                                </div>
+                                <div className="flex items-center gap-3 px-1">
+                                    <span className="text-xs text-text-muted whitespace-nowrap">Sustain</span>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="100"
+                                        step="1"
+                                        value={(powerWeights.offense / (powerWeights.offense + powerWeights.sustain)) * 100}
+                                        onChange={(e) => {
+                                            const value = parseFloat(e.target.value);
+                                            if (value === 50) {
+                                                // 1:1 balanced point
+                                                setPowerWeights({ offense: 1, sustain: 1 });
+                                            } else {
+                                                const offenseRatio = value / 100;
+                                                const sustainRatio = 1 - offenseRatio;
+                                                // Scale from 0.5x to 2x for more impact
+                                                const offense = 0.5 + (offenseRatio * 1.5);
+                                                const sustain = 0.5 + (sustainRatio * 1.5);
+                                                setPowerWeights({ offense, sustain });
+                                            }
+                                        }}
+                                        className="flex-1 h-2 bg-bg-primary rounded-lg appearance-none cursor-pointer"
+                                    />
+                                    <span className="text-xs text-text-muted whitespace-nowrap">Offense</span>
+                                </div>
+                                <div className="text-xs text-text-muted mt-2 text-center">
+                                    {Math.abs(powerWeights.offense - powerWeights.sustain) < 0.01 ? (
+                                        <span className="text-accent-primary font-semibold">⚖️ Balanced (1:1)</span>
+                                    ) : (
+                                        <span>Sustain {powerWeights.sustain.toFixed(1)}x  •  Offense {powerWeights.offense.toFixed(1)}x</span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <Button variant="secondary" size="sm" onClick={runPriorityAnalysis} disabled={!sandboxStats}>
                         Run Analysis
                     </Button>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {priorityList.length === 0 ? (
-                        <div className="text-sm text-text-muted">Run the analysis to see the top 6 replacement values.</div>
-                    ) : (
-                        priorityList.map((entry) => (
-                            <div
-                                key={entry.stat}
-                                className="bg-bg-input/30 rounded-lg border border-border/30 p-3 flex items-center justify-between"
-                            >
-                                <div className="text-sm text-text-secondary">{entry.stat}</div>
-                                <div className="text-sm font-semibold text-accent-primary">+{entry.gainPercent.toFixed(2)}%</div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="bg-bg-input/30 rounded-lg border border-border/30 p-4 space-y-3">
+                        <div>
+                            <div className="text-xs text-text-muted uppercase font-semibold tracking-wide">Weakest Item</div>
+                            {weakestItemLabel ? (
+                                <div className="text-base font-semibold text-text-primary mt-1">{weakestItemLabel}</div>
+                            ) : (
+                                <div className="text-sm text-text-muted italic mt-1">No item with paired stats found.</div>
+                            )}
+                        </div>
+
+                        {itemReplacementList.length > 0 ? (
+                            <div className="space-y-1">
+                                {itemReplacementList.map((entry, index) => (
+                                    <div key={`${entry.stat}-${index}`} className="flex items-center justify-between text-sm">
+                                        <span className="text-text-secondary">{index + 1}. {entry.stat}</span>
+                                        <span className="font-semibold text-accent-primary">+{entry.gainPercent.toFixed(1)}%</span>
+                                    </div>
+                                ))}
                             </div>
-                        ))
-                    )}
+                        ) : null}
+
+                        <div className="flex flex-col gap-2 pt-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                    simulateTopReplacement('item');
+                                    simulateItemReplacement();
+                                }}
+                                disabled={itemReplacementList.length === 0}
+                            >
+                                Simulate Top 2 @ 75%
+                            </Button>
+                            {itemSwapGain !== null && itemNetPowerDelta !== null && itemOffensePercent !== null && itemSustainPercent !== null && (
+                                <div className="rounded-lg bg-bg-primary/40 border border-border/20 p-3 space-y-2">
+                                    <div className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Simulation Results</div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="space-y-0.5">
+                                            <div className="text-xs text-text-muted">Offense</div>
+                                            <div className={itemOffensePercent >= 0 ? 'text-lg font-bold text-accent-primary' : 'text-lg font-bold text-red-500'}>
+                                                {itemOffensePercent >= 0 ? '+' : ''}{itemOffensePercent.toFixed(1)}%
+                                            </div>
+                                        </div>
+                                        <div className="space-y-0.5">
+                                            <div className="text-xs text-text-muted">Sustain</div>
+                                            <div className={itemSustainPercent >= 0 ? 'text-lg font-bold text-accent-primary' : 'text-lg font-bold text-red-500'}>
+                                                {itemSustainPercent >= 0 ? '+' : ''}{itemSustainPercent.toFixed(1)}%
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="border-t border-border/20 pt-2">
+                                        <div className="text-xs text-text-muted mb-1">Net Power</div>
+                                        <div className={itemNetPowerDelta >= 0 ? 'text-xl font-bold text-accent-primary' : 'text-xl font-bold text-orange-500'}>
+                                            {itemNetPowerDelta >= 0 ? '+' : ''}{itemNetPowerDelta.toFixed(1)}%
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            {simulatedItemOverride ? (
+                                <div className="rounded-lg border border-border/40 bg-bg-input/40 p-3 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <div className="text-xs font-semibold text-text-secondary uppercase">Simulated Item</div>
+                                        <Button variant="ghost" size="sm" onClick={() => setSimulatedItemOverride(null)}>
+                                            Clear
+                                        </Button>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {simulatedItemOverride.secondaryStats.map((stat, index) => {
+                                            const formatted = formatSecondaryStat(stat.statId, stat.value);
+                                            return (
+                                                <span key={`${stat.statId}-${index}`} className="rounded bg-bg-primary/60 px-2 py-0.5 text-xs">
+                                                    {formatted.name}: {formatted.formattedValue}
+                                                </span>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ) : null}
+                        </div>
+                    </div>
+
+                    <div className="bg-bg-input/30 rounded-lg border border-border/30 p-4 space-y-3">
+                        <div>
+                            <div className="text-xs text-text-muted uppercase font-semibold tracking-wide">Weakest Pet</div>
+                            {weakestPetLabel ? (
+                                <div className="text-base font-semibold text-text-primary mt-1">{weakestPetLabel}</div>
+                            ) : (
+                                <div className="text-sm text-text-muted italic mt-1">No pet with paired stats found.</div>
+                            )}
+                        </div>
+
+                        {petReplacementList.length > 0 ? (
+                            <div className="space-y-1">
+                                {petReplacementList.map((entry, index) => (
+                                    <div key={`${entry.stat}-${index}`} className="flex items-center justify-between text-sm">
+                                        <span className="text-text-secondary">{index + 1}. {entry.stat}</span>
+                                        <span className="font-semibold text-accent-primary">+{entry.gainPercent.toFixed(1)}%</span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : null}
+
+                        <div className="flex flex-col gap-2 pt-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                    simulateTopReplacement('pet');
+                                    simulatePetReplacement();
+                                }}
+                                disabled={petReplacementList.length === 0}
+                            >
+                                Simulate Top 2 @ 75%
+                            </Button>
+                            {petSwapGain !== null && petNetPowerDelta !== null && petOffensePercent !== null && petSustainPercent !== null && (
+                                <div className="rounded-lg bg-bg-primary/40 border border-border/20 p-3 space-y-2">
+                                    <div className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Simulation Results</div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="space-y-0.5">
+                                            <div className="text-xs text-text-muted">Offense</div>
+                                            <div className={petOffensePercent >= 0 ? 'text-lg font-bold text-accent-primary' : 'text-lg font-bold text-red-500'}>
+                                                {petOffensePercent >= 0 ? '+' : ''}{petOffensePercent.toFixed(1)}%
+                                            </div>
+                                        </div>
+                                        <div className="space-y-0.5">
+                                            <div className="text-xs text-text-muted">Sustain</div>
+                                            <div className={petSustainPercent >= 0 ? 'text-lg font-bold text-accent-primary' : 'text-lg font-bold text-red-500'}>
+                                                {petSustainPercent >= 0 ? '+' : ''}{petSustainPercent.toFixed(1)}%
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="border-t border-border/20 pt-2">
+                                        <div className="text-xs text-text-muted mb-1">Net Power</div>
+                                        <div className={petNetPowerDelta >= 0 ? 'text-xl font-bold text-accent-primary' : 'text-xl font-bold text-orange-500'}>
+                                            {petNetPowerDelta >= 0 ? '+' : ''}{petNetPowerDelta.toFixed(1)}%
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            {simulatedPetOverride ? (
+                                <div className="rounded-lg border border-border/40 bg-bg-input/40 p-3 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <div className="text-xs font-semibold text-text-secondary uppercase">Simulated Pet</div>
+                                        <Button variant="ghost" size="sm" onClick={() => setSimulatedPetOverride(null)}>
+                                            Clear
+                                        </Button>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {simulatedPetOverride.secondaryStats.map((stat, index) => {
+                                            const formatted = formatSecondaryStat(stat.statId, stat.value);
+                                            return (
+                                                <span key={`${stat.statId}-${index}`} className="rounded bg-bg-primary/60 px-2 py-0.5 text-xs">
+                                                    {formatted.name}: {formatted.formattedValue}
+                                                </span>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ) : null}
+                        </div>
+                    </div>
                 </div>
             </Card>
 
